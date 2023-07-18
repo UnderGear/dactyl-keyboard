@@ -133,7 +133,7 @@ class OrbylCluster(ca.TrackballClusterBase):
         ])
 
     def thumbcaps(self):
-        t1 = self.thumb_1x_layout(self.pl.sa_cap(1))
+        t1 = self.thumb_1x_layout(self.pl.keycap(1))
         return t1
 
     def thumb_post_tr(self):

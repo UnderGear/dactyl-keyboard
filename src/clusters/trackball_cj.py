@@ -120,7 +120,7 @@ class TrackballCJCluster(ca.TrackballClusterBase):
         return self.g.union([t, tb])
 
     def thumbcaps(self):
-        t = self.thumb_layout(self.pl.sa_cap(1))
+        t = self.thumb_layout(self.pl.keycap(1))
         return t
 
     def thumb_connectors(self):

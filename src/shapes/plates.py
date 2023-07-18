@@ -168,7 +168,7 @@ class HolePlateParameters:
     sa_length: float = 18.5
     sa_double_length: float = 37.5
 
-    plate_rim: float = 2.0
+    plate_rim: float = 2.55
 
     hotswap: bool = False
 
@@ -347,6 +347,14 @@ class HolePlate:
     ################
     ## SA Keycaps ##
     ################
+    def keycap(self, *args, **kwargs):
+        if self.p.show_caps == 'CHOC':
+            return self.choc_cap(*args, **kwargs)
+        elif self.p.show_caps == 'MX':
+            return self.sa_cap(*args, **kwargs)
+        else:
+            return self.sa_cap(*args, **kwargs)
+
 
     def sa_cap(self, Usize=1):
         # MODIFIED TO NOT HAVE THE ROTATION.  NEEDS ROTATION DURING ASSEMBLY
@@ -394,6 +402,50 @@ class HolePlate:
 
         return key_cap
 
+    def choc_cap(self, Usize=1):
+        # MODIFIED TO NOT HAVE THE ROTATION.  NEEDS ROTATION DURING ASSEMBLY
+        # sa_length = 18.25
+
+        bt = 2
+        pt = 1.5
+        if Usize == 1:
+            bl2 = 18.0 / 2
+            bw2 = 17.5 / 2
+            bt = 2
+            pl2 = bl2-1.5
+            pw2 = bw2-1.5
+
+        elif Usize == 2:
+            bl2 = 18
+            bw2 = 17.5 / 2
+            pl2 = bl2-1.5
+            pw2 = bw2-1.5
+
+        elif Usize == 1.5:
+            bl2 = 17.5 / 2
+            bw2 = 27.94 / 2
+            pl2 = bl2-1.5
+            pw2 = bw2-1.5
+
+        k1 = self.g.polyline([(bw2, bl2), (bw2, -bl2), (-bw2, -bl2), (-bw2, bl2), (bw2, bl2)])
+        k1 = self.g.extrude_poly(outer_poly=k1, height=0.1)
+        k1 = self.g.translate(k1, (0, 0, 0.05))
+        k2 = self.g.polyline([(bw2, bl2), (bw2, -bl2), (-bw2, -bl2), (-bw2, bl2), (bw2, bl2)])
+        k2 = self.g.extrude_poly(outer_poly=k2, height=0.1)
+        k2 = self.g.translate(k2, (0, 0, 0.05 + bt))
+        k3 = self.g.polyline([(pw2, pl2), (pw2, -pl2), (-pw2, -pl2), (-pw2, pl2), (pw2, pl2)])
+        k3 = self.g.extrude_poly(outer_poly=k3, height=0.1)
+        k3 = self.g.translate(k3, (0, 0, 0.05 + bt + pt))
+        key_cap = self.g.hull_from_shapes((k1, k2, k3))
+
+        key_cap = self.g.translate(key_cap, (0, 0, 2.8 + self.pp.plate_thickness))
+
+        if self.p.show_pcbs:
+            key_cap = self.g.add([key_cap, self.key_pcb()])
+
+        return key_cap
+
+
     def key_pcb(self):
         shape = self.g.box(self.pp.pcb_width, self.pp.pcb_height, self.pp.pcb_thickness)
         shape = self.g.translate(shape, (0, 0, -self.pp.pcb_thickness / 2))
@@ -408,6 +460,7 @@ class HolePlate:
         shape = self.g.difference(shape, holes)
 
         return shape
+
 
     ####################
     ## Web Connectors ##
@@ -513,10 +566,10 @@ class UndercutPlateParameters(HolePlateParameters):
     package: str = 'shapes.plates'
     class_name: str = 'UndercutPlate'
 
-    keyswitch_height: float = 14.0
-    keyswitch_width: float = 14.0
-
-    plate_rim: float = 1.5 + 0.5
+    # keyswitch_height: float = 14.0
+    # keyswitch_width: float = 14.0
+    #
+    # plate_rim: float = 1.5 + 0.5
     # Undercut style dimensions
     clip_thickness: float = 1.1
     clip_undercut: float = 1.0
@@ -556,10 +609,10 @@ class NotchPlateParameters(HolePlateParameters):
     package: str = 'shapes.plates'
     class_name: str = 'NotchPlate'
 
-    keyswitch_height: float = 14.0
-    keyswitch_width: float = 14.0
-
-    plate_rim: float = 1.5 + 0.5
+    # keyswitch_height: float = 14.0
+    # keyswitch_width: float = 14.0
+    #
+    # plate_rim: float = 1.5 + 0.5
 
     notch_width: float = 6.0  # If using notch, it is identical to undecut, but only locally by the switch clip
     clip_thickness: float = 1.1
@@ -612,11 +665,11 @@ class NubPlateParameters(HolePlateParameters):
     package: str = 'shapes.plates'
     class_name: str = 'NubPlate'
 
-    keyswitch_height: float = 14.4
-    keyswitch_width: float = 14.4
-    plate_thickness: float = 4 + 1.1
-
-    plate_rim: float = 1.5 + 0.5
+    # keyswitch_height: float = 14.4
+    # keyswitch_width: float = 14.4
+    # plate_thickness: float = 4 + 1.1
+    #
+    # plate_rim: float = 1.5 + 0.5
 
     nub_radius: float = 1.0
     nub_width: float = 2.75

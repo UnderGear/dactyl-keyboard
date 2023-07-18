@@ -97,8 +97,8 @@ class MiniCluster(ca.ClusterBase):
         return self.g.union([self.tr_place(self.g.rotate(shape, [0, 0, self.tp.thumb_plate_tr_rotation]))])
 
     def thumbcaps(self):
-        t1 = self.thumb_1x_layout(self.pl.sa_cap(1))
-        t15 = self.thumb_15x_layout(self.g.rotate(self.pl.sa_cap(1), [0, 0, rad2deg(pi / 2)]))
+        t1 = self.thumb_1x_layout(self.pl.keycap(1))
+        t15 = self.thumb_15x_layout(self.g.rotate(self.pl.keycap(1), [0, 0, rad2deg(pi / 2)]))
         return t1.add(t15)
 
     def thumb(self):

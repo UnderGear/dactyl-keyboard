@@ -160,7 +160,7 @@ class ClusterBase(ABC):
         return shape
 
     def thumbcaps(self):
-        return self.pl.sa_cap(1)
+        return self.pl.keycap(1)
 
     def thumb(self):
         return self.pl.single_plate()

@@ -1,7 +1,7 @@
 {
     "save_dir": ".",
     "config_name": "DM",
-    "show_caps": false,
+    "show_caps": "CHOC",
     "show_pcbs": false,
     "alpha": 0.26179916666666664,
     "beta": 0.08726638888888888,
@@ -13,7 +13,7 @@
     "column_style_gt5": "orthographic",
     "reduced_outer_keys": true,
     "keyboard_z_offset": 11,
-    "extra_width": 2.5,
+    "extra_width": 2.0,
     "extra_height": 1.0,
     "web_thickness": 5.1,
     "post_size": 0.1,
@@ -88,7 +88,7 @@
         "sa_profile_key_height": 12.7,
         "sa_length": 18.5,
         "sa_double_length": 37.5,
-        "plate_rim": 2.0,
+        "plate_rim": 2.55,
         "hotswap": false,
         "plate_file_name": null,
         "plate_offset": 0.0,
@@ -362,11 +362,16 @@
         "cluster_1U": false
     },
     "separable_thumb": false,
-    "wall_z_offset": 15,
-    "wall_x_offset": 3,
-    "wall_y_offset": 3,
-    "back_wall_y_offset": 10,
-    "back_wall_z_offset": 3,
+    "wall_offset": [
+        5,
+        6,
+        15
+    ],
+    "back_wall_offset": [
+        6,
+        10,
+        3
+    ],
     "left_wall_ext_x_offset": 12,
     "left_wall_ext_z_offset": 3,
     "left_wall_ext_lower_x_offset": 0,

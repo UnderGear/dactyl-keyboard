@@ -107,9 +107,9 @@ class CustomCluster(DefaultCluster):
         return shapes
 
     def thumbcaps(self):
-        t1 = self.thumb_1x_layout(sa_cap(1), cap=True)
+        t1 = self.thumb_1x_layout(keycap(1), cap=True)
         if not default_1U_cluster:
-            t1.add(self.thumb_15x_layout(sa_cap(1), cap=True))
+            t1.add(self.thumb_15x_layout(keycap(1), cap=True))
         return t1
 
     def thumb(self):

@@ -147,9 +147,9 @@ class DefaultCluster(ca.ClusterBase):
                 return self.g.union(shape_list)
 
     def thumbcaps(self):
-        t1 = self.thumb_1x_layout(self.pl.sa_cap(1), cap=True)
+        t1 = self.thumb_1x_layout(self.pl.keycap(1), cap=True)
         if not self.tp.cluster_1U:
-            t1.add(self.thumb_15x_layout(self.pl.sa_cap(1.5), cap=True))
+            t1.add(self.thumb_15x_layout(self.pl.keycap(1.5), cap=True))
         return t1
 
     def thumb(self):
@@ -339,19 +339,17 @@ class DefaultCluster(ca.ClusterBase):
             ]
         )])
 
-        shape = self.g.union([shape,
-                       self.g.hull_from_shapes(
-                           [
-                               self.parent.left_key_place(self.g.translate(self.pl.web_post(), self.parent.wall_locate2(-1, 0)), self.p.cornerrow, -1,
-                                                          low_corner=True),
-                               self.parent.left_key_place(self.g.translate(self.pl.web_post(), self.parent.wall_locate3(-1, 0)), self.p.cornerrow, -1,
-                                                          low_corner=True),
-                               self.ml_place(self.g.translate(self.pl.web_post_tr(), self.parent.wall_locate2(-0.3, 1))),
-                               self.ml_place(self.g.translate(self.pl.web_post_tr(), self.parent.wall_locate3(-0.3, 1))),
-                               self.tl_place(self.thumb_post_tl()),
-                           ]
-                       )
-                       ])  # )
+        shape = self.g.union([
+            shape, self.g.hull_from_shapes([
+                   self.parent.left_key_place(self.g.translate(self.pl.web_post(), self.parent.wall_locate2(-1, 0)), self.p.cornerrow, -1,
+                                              low_corner=True),
+                   self.parent.left_key_place(self.g.translate(self.pl.web_post(), self.parent.wall_locate3(-1, 0)), self.p.cornerrow, -1,
+                                              low_corner=True),
+                   self.ml_place(self.g.translate(self.pl.web_post_tr(), self.parent.wall_locate2(-0.3, 1))),
+                   self.ml_place(self.g.translate(self.pl.web_post_tr(), self.parent.wall_locate3(-0.3, 1))),
+                   self.tl_place(self.thumb_post_tl()),
+            ])
+       ])  # )
 
         shape = self.g.union([shape, self.g.hull_from_shapes(
             [
@@ -364,10 +362,16 @@ class DefaultCluster(ca.ClusterBase):
 
         shape = self.g.union([shape, self.g.hull_from_shapes(
             [
-                self.parent.left_key_place(self.pl.web_post(), self.p.cornerrow, -1, low_corner=True),
-                self.parent.left_key_place(self.g.translate(self.pl.web_post(), self.parent.wall_locate1(-1, 0)), self.p.cornerrow, -1, low_corner=True),
                 self.parent.key_place(self.pl.web_post_bl(), 0, self.p.cornerrow),
                 self.tl_place(self.thumb_post_tl()),
+                self.parent.left_key_place(self.pl.web_post(), self.p.cornerrow, -1, low_corner=True),
+            ]
+        )])
+        shape = self.g.union([shape, self.g.hull_from_shapes(
+            [
+                self.tl_place(self.thumb_post_tl()),
+                self.parent.left_key_place(self.pl.web_post(), self.p.cornerrow, -1, low_corner=True),
+                self.parent.left_key_place(self.g.translate(self.pl.web_post(), self.parent.wall_locate1(-1, 0)), self.p.cornerrow, -1, low_corner=True),
             ]
         )])
 

@@ -35,7 +35,7 @@ class ShapeConfiguration:
     save_dir: str = '.'
     config_name: str = "DM"
 
-    show_caps: bool = False
+    show_caps: bool = 'CHOC'
     show_pcbs: bool = False  # only runs if caps are shown, easist place to initially inject geometry
 
     nrows = 5  # 5,  # key rows
@@ -57,7 +57,7 @@ class ShapeConfiguration:
 
     keyboard_z_offset: float = (11)  # controls overall height# original=9 with centercol=3# use 16 for centercol=2
 
-    extra_width: float = 2.5  # extra space between the base of keys# original= 2
+    extra_width: float = 2.0  # extra space between the base of keys# original= 2
     extra_height: float = 1.0  # original= 0.5
 
     web_thickness: float = 4.0 + 1.1
@@ -113,11 +113,14 @@ class ShapeConfiguration:
     # WALL PARAMETERS
     ##############################
 
-    wall_z_offset: float = 15  # length of the first downward_sloping part of the wall
-    wall_x_offset: float = 5  # offset in the x and/or y direction for the first downward_sloping part of the wall (negative)
-    wall_y_offset: float = 6  # offset in the x and/or y direction for the first downward_sloping part of the wall (negative)
-    back_wall_y_offset: float = 6  # specific values for the left side due to the minimal wall.
-    back_wall_z_offset: float = 15  # specific values for the left side due to the minimal wall.
+    wall_offset: (float, float, float) = (5, 6, 15)  # offset in the x and/or y direction for the first downward_sloping part of the wall (negative)
+    back_wall_offset: (float, float, float) = (5, 6, 15)  # specific values for the left side due to the minimal wall.
+
+    # wall_z_offset: float = 15  # length of the first downward_sloping part of the wall
+    # wall_x_offset: float = 5  # offset in the x and/or y direction for the first downward_sloping part of the wall (negative)
+    # wall_y_offset: float = 6  # offset in the x and/or y direction for the first downward_sloping part of the wall (negative)
+    # back_wall_y_offset: float = 6  # specific values for the left side due to the minimal wall.
+    # back_wall_z_offset: float = 15  # specific values for the left side due to the minimal wall.
 
     left_wall_ext_x_offset: float = 12  # specific values for the left side due to the minimal wall.
     left_wall_ext_z_offset: float = 3  # specific values for the left side due to the minimal wall.
@@ -236,8 +239,7 @@ if __name__ == '__main__':
     # ctrl = controllers.PCBMountControllerParameters()
 
     config = ShapeConfiguration(
-        back_wall_y_offset=10,  # specific values for the left side due to the minimal wall.
-        back_wall_z_offset=3,  # specific values for the left side due to the minimal wall.
+        back_wall_offset=(6, 10, 3),  # specific values for the left side due to the minimal wall.
         right_cluster=right_cluster,
         left_cluster=left_cluster,
         oled_config=oled,

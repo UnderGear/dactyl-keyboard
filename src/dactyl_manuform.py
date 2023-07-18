@@ -366,9 +366,9 @@ class DactylBase:
             for row in range(self.p.nrows):
                 if self.valid_key(column, row):
                     if caps is None:
-                        caps = self.key_place(self.pl.sa_cap(size), column, row)
+                        caps = self.key_place(self.pl.keycap(size), column, row)
                     else:
-                        caps = self.g.add([caps, self.key_place(self.pl.sa_cap(size), column, row)])
+                        caps = self.g.add([caps, self.key_place(self.pl.keycap(size), column, row)])
 
         return caps
 
@@ -475,7 +475,7 @@ class DactylBase:
     def wall_locate2(self, dx, dy, offsets=None):
         debugprint("wall_locate2()")
         if offsets is None:
-            return [dx * self.p.wall_x_offset, dy * self.p.wall_y_offset, -self.p.wall_z_offset]
+            return [dx * self.p.wall_offset[0], dy * self.p.wall_offset[1], -self.p.wall_offset[2]]
         else:
             return [
                 dx * offsets[0], dy * offsets[1], -offsets[2],
@@ -485,9 +485,9 @@ class DactylBase:
         debugprint("wall_locate3()")
         if offsets is None:
             return [
-                dx * (self.p.wall_x_offset + self.p.wall_base_x_thickness),
-                dy * (self.p.wall_y_offset + self.p.wall_base_y_thickness),
-                -self.p.wall_z_offset,
+                dx * (self.p.wall_offset[0] + self.p.wall_base_x_thickness),
+                dy * (self.p.wall_offset[1] + self.p.wall_base_y_thickness),
+                -self.p.wall_offset[2],
             ]
         else:
             return [
@@ -502,27 +502,27 @@ class DactylBase:
         debugprint("wall_brace()")
         hulls = []
         offsets12 = (
-            self.p.wall_x_offset, self.p.wall_y_offset, self.p.wall_z_offset
+            self.p.wall_offset[0], self.p.wall_offset[1], self.p.wall_offset[2]
         )
         offsets13 = (
-            self.p.wall_x_offset, self.p.wall_y_offset, self.p.wall_z_offset
+            self.p.wall_offset[0], self.p.wall_offset[1], self.p.wall_offset[2]
         )
         offsets22 = (
-            self.p.wall_x_offset, self.p.wall_y_offset, self.p.wall_z_offset
+            self.p.wall_offset[0], self.p.wall_offset[1], self.p.wall_offset[2]
         )
         offsets23 = (
-            self.p.wall_x_offset, self.p.wall_y_offset, self.p.wall_z_offset
+            self.p.wall_offset[0], self.p.wall_offset[1], self.p.wall_offset[2]
         )
         if wall in ['back']:
             offsets12 = (
-                self.p.wall_x_offset,
-                self.p.back_wall_y_offset,
-                self.p.back_wall_z_offset
+                self.p.wall_offset[0],
+                self.p.back_wall_offset[1],
+                self.p.back_wall_offset[2]
             )
             offsets13 = (
-                self.p.wall_x_offset,
-                self.p.back_wall_y_offset + self.p.wall_base_back_thickness-self.p.wall_base_y_thickness,
-                self.p.back_wall_z_offset
+                self.p.wall_offset[0],
+                self.p.back_wall_offset[1] + self.p.wall_base_back_thickness-self.p.wall_base_y_thickness,
+                self.p.back_wall_offset[2]
             )
 
         if wall2 is None:
@@ -530,14 +530,14 @@ class DactylBase:
             offsets23 = offsets13
         elif wall2 in ['back']:
             offsets22 = (
-                self.p.wall_x_offset,
-                self.p.back_wall_y_offset,
-                self.p.back_wall_z_offset
+                self.p.wall_offset[0],
+                self.p.back_wall_offset[1],
+                self.p.back_wall_offset[2]
             )
             offsets23 = (
-                self.p.wall_x_offset,
-                self.p.back_wall_y_offset + self.p.wall_base_back_thickness-self.p.wall_base_y_thickness,
-                self.p.back_wall_z_offset
+                self.p.wall_offset[0],
+                self.p.back_wall_offset[1] + self.p.wall_base_back_thickness-self.p.wall_base_y_thickness,
+                self.p.back_wall_offset[2]
             )
 
 
@@ -788,19 +788,21 @@ class DactylBase:
         shift_up = (not (shift_right or shift_left)) and (row == 0)
         shift_down = (not (shift_right or shift_left)) and (row >= self.p.lastrow)
 
+
+
         if self.p.screws_offset == 'INSIDE':
             # debugprint('Shift Inside')
             shift_left_adjust = self.p.wall_base_x_thickness
-            shift_right_adjust = -self.p.wall_base_x_thickness / 2
+            shift_right_adjust = 0
             shift_down_adjust = -self.p.wall_base_y_thickness / 2
-            shift_up_adjust = -self.p.wall_base_y_thickness / 3
+            shift_up_adjust = -self.p.wall_base_y_thickness / 2
 
         elif self.p.screws_offset == 'OUTSIDE':
             # debugprint('Shift Outside')
             shift_left_adjust = 0
             shift_right_adjust = self.p.wall_base_x_thickness / 2
-            shift_down_adjust = self.p.wall_base_y_thickness * 2 / 3
-            shift_up_adjust = self.p.wall_base_y_thickness * 2 / 3
+            shift_down_adjust = self.p.wall_base_y_thickness / 2
+            shift_up_adjust = self.p.wall_base_y_thickness / 2
 
         else:
             # debugprint('Shift Origin')
@@ -809,28 +811,46 @@ class DactylBase:
             shift_down_adjust = 0
             shift_up_adjust = 0
 
+        offset = (
+            self.p.wall_offset[0], self.p.wall_offset[1], self.p.wall_offset[2]
+        )
+        offset_back = (
+            self.p.back_wall_offset[0],
+            self.p.back_wall_offset[1],
+            self.p.back_wall_offset[2]
+        )
+
         if shift_up:
             position = self.key_position(
-                list(np.array(self.wall_locate2(0, 1)) + np.array([0, (self.p.mount_height / 2) + shift_up_adjust, 0])),
+                list(
+                    np.array(self.wall_locate2(0, 1, offset_back))
+                    + np.array([0, (self.p.mount_height / 2) + shift_up_adjust, 0])
+                ),
                 column,
                 row,
             )
         elif shift_down:
             position = self.key_position(
-                list(np.array(self.wall_locate2(0, -1)) - np.array([0, (self.p.mount_height / 2) + shift_down_adjust, 0])),
+                list(
+                    np.array(self.wall_locate2(0, -1, offset))
+                    - np.array([0, (self.p.mount_height / 2) + shift_down_adjust, 0])
+                ),
                 column,
                 row,
             )
         elif shift_left:
             position = list(
-                np.array(self.left_key_position(row, 0)) + np.array(self.wall_locate3(-1, 0)) + np.array(
-                    (shift_left_adjust, 0, 0))
+                np.array(self.left_key_position(row, 0))
+                + np.array(self.wall_locate3(-1, 0, offset))
+                + np.array((shift_left_adjust, 0, 0))
             )
         else:
             position = self.key_position(
-                list(np.array(self.wall_locate2(1, 0)) + np.array([(self.p.mount_height / 2), 0, 0]) + np.array(
-                    (shift_right_adjust, 0, 0))
-                     ),
+                list(
+                    np.array(self.wall_locate2(1, 0, offset))
+                    + np.array([(self.p.mount_height / 2), 0, 0])
+                    + np.array((shift_right_adjust, 0, 0))
+                ),
                 column,
                 row,
             )
