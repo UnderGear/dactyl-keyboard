@@ -2,9 +2,19 @@ import sys
 import getopt
 import os
 import json
+
+packages_path = r"C:\Users\jashr\AppData\Roaming\Python\Python39\site-packages"
+sys.path.insert(0, packages_path )
+fdir = r'E:\Users\jashreve\git\dactyl-keyboard-JS\src'
+print(os.getcwd())
+os.chdir(fdir)
+sys.path.append(fdir)
+print(os.getcwd())
+
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass
 from typing import Any, Sequence
+
 
 pi = 3.14159
 d2r = pi / 180
@@ -25,9 +35,10 @@ OLED_LOOKUP = {
 @dataclass_json
 @dataclass
 class ShapeConfiguration:
-    ENGINE = 'solid'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    # ENGINE = 'solid'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
     # ENGINE = 'cadquery'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
-
+    ENGINE = 'blender'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    
     ######################
     ## Shape parameters ##
     ######################
@@ -35,11 +46,11 @@ class ShapeConfiguration:
     save_dir: str = '.'
     config_name: str = "DM"
 
-    show_caps: bool = 'CHOC'
+    show_caps: bool = None #'CHOC'
     show_pcbs: bool = False  # only runs if caps are shown, easist place to initially inject geometry
 
-    nrows = 5  # 5,  # key rows
-    ncols = 6  # 6,  # key columns
+    nrows = 3  # 5,  # key rows
+    ncols = 5  # 6,  # key columns
 
     alpha: float = pi / 12.0  # curvature of the columns
     beta: float = pi / 36.0  # curvature of the rows
@@ -53,6 +64,7 @@ class ShapeConfiguration:
     column_style: str = "standard"  # options include :standard, :orthographic, and :fixed
     column_style_gt5: str = "orthographic"
 
+    # reduced_outer_keys: bool = True
     reduced_outer_keys: bool = True
 
     keyboard_z_offset: float = (11)  # controls overall height# original=9 with centercol=3# use 16 for centercol=2
@@ -61,9 +73,12 @@ class ShapeConfiguration:
     extra_height: float = 1.0  # original= 0.5
 
     web_thickness: float = 4.0 + 1.1
-    post_size: float = 0.1
-    # post_adj =  post_size / 2
-    post_adj: float = 0
+    post_size: float = 0.5
+    post_adj = post_size / 2
+    # post_size: float = 0.3
+    # post_adj = post_size / 2
+
+    #post_adj: float = 0
 
 
     oled_config: Any = None   #OLED_LOOKUP[oled_mount_type]()
@@ -199,7 +214,8 @@ class ShapeConfiguration:
 
         if self.plate_config is None:
             from shapes import plates
-            self.plate_config = plates.NotchPlateParameters(plate_holes=True, plate_pcb_clear=True)
+#            self.plate_config = plates.NotchPlateParameters(plate_holes=True, plate_pcb_clear=True)
+            self.plate_config = plates.NotchPlateParameters(plate_holes=False, plate_pcb_clear=False)
 
 
 if __name__ == '__main__':
@@ -207,7 +223,8 @@ if __name__ == '__main__':
 
     import clusters.default as clust_def
     left_cluster = clust_def.DefaultClusterParameters()
-    right_cluster = clust_def.DefaultClusterParameters()
+    # right_cluster = clust_def.DefaultClusterParameters()
+    right_cluster = None
 
     # import clusters.mini as clust_min
     # right_cluster = clust_min.MiniClusterParameters()
@@ -231,7 +248,8 @@ if __name__ == '__main__':
 
 
     from oled import oled_clip
-    oled = oled_clip.OLEDClipParameters()
+    # oled = oled_clip.OLEDClipParameters()
+    oled = None
 
     from shapes import controllers
     ctrl = controllers.ExternalControllerParameters()

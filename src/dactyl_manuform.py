@@ -5,7 +5,7 @@ import os
 import copy
 import importlib
 from helpers import helpers_abc, freecad_that as freecad
-#from shapes.plates import
+# from shapes.plates import
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass
 
@@ -32,15 +32,16 @@ from dataclasses import dataclass
 ENGINE_LOOKUP = {
     'solid': 'helpers.helpers_solid',
     'cadquery': 'helpers.helpers_cadquery',
+    'blender': 'helpers.helpers_blender',
 }
 
-
 debug_exports = False
-debug_trace = False
+debug_trace = True
+
+
 def debugprint(info):
     if debug_trace:
         print(info)
-
 
 
 def deg2rad(degrees: float) -> float:
@@ -84,10 +85,17 @@ class DactylBase:
 
         # Below is used to allow IDE autofill from helpers_abc regardless of actual imported engine.
         if self.p_base.ENGINE is not None:
-            self.g = importlib.import_module(ENGINE_LOOKUP[self.p_base.ENGINE])
+            libname = ENGINE_LOOKUP[self.p_base.ENGINE]
+            if self.p_base.ENGINE == 'blender':
+                print('reloading blender lib')
+                if libname in locals():
+                    self.g = importlib.reload(libname)
+                else:
+                    self.g = importlib.import_module(libname)
+            else:
+                self.g = importlib.import_module(libname)
         else:
             self.g = helpers_abc
-
 
         if self.p_base.right_cluster is None:
             self.p_base.right_cluster = self.p_base.left_cluster
@@ -147,10 +155,10 @@ class DactylBase:
 
         # self.p.cap_top_height = self.p.plate_thickness + self.p.sa_profile_key_height
         self.p.row_radius = ((self.p.mount_height + self.p.extra_height) / 2) / (
-                np.sin(self.p.alpha / 2)) + self.p.cap_top_height
+            np.sin(self.p.alpha / 2)) + self.p.cap_top_height
         self.p.column_radius = (
-                ((self.p.mount_width + self.p.extra_width) / 2) / (np.sin(self.p.beta / 2))
-                ) + self.p.cap_top_height
+                                       ((self.p.mount_width + self.p.extra_width) / 2) / (np.sin(self.p.beta / 2))
+                               ) + self.p.cap_top_height
         self.p.column_x_delta = -1 - self.p.column_radius * np.sin(self.p.beta)
         self.p.column_base_angle = self.p.beta * (self.p.centercol - 2)
 
@@ -177,7 +185,6 @@ class DactylBase:
         self.load_oled()
         self.load_modules()
 
-
     def load_module(self, config):
         if config is None:
             print("NO MODULE CONFIG")
@@ -191,7 +198,6 @@ class DactylBase:
     def load_modules(self):
         for config in self.p.module_configs:
             self.modules.append(self.load_module(config))
-
 
     def load_cluster(self):
         if self.side == 'left':
@@ -211,14 +217,11 @@ class DactylBase:
     def load_plates(self):
         self.pl = self.load_module(self.p.plate_config)
 
-
-
     def column_offset(self, column: int) -> list:
         result = self.p.column_offsets[column]
         # if (pinky_1_5U and column == lastcol):
         #     result[0] = result[0] + 1
         return result
-
 
     #########################
     ## Placement Functions ##
@@ -390,6 +393,7 @@ class DactylBase:
                 iterrows = self.p.lastrow
             for row in range(iterrows):  # need to consider last_row?
                 # for row in range(nrows):  # need to consider last_row?
+                debugprint("TYPE1 COL: {}, ROW: {}".format(column, row))
                 places = []
                 places.append(self.key_place(self.pl.web_post_tl(), column + 1, row))
                 places.append(self.key_place(self.pl.web_post_tr(), column, row))
@@ -403,6 +407,7 @@ class DactylBase:
             else:
                 iterrows = self.p.cornerrow
             for row in range(iterrows):
+                debugprint("TYPE2 COL: {}, ROW: {}".format(column, row))
                 places = []
                 places.append(self.key_place(self.pl.web_post_bl(), column, row))
                 places.append(self.key_place(self.pl.web_post_br(), column, row))
@@ -416,6 +421,7 @@ class DactylBase:
             else:
                 iterrows = self.p.cornerrow
             for row in range(iterrows):
+                debugprint("TYPE3 COL: {}, ROW: {}".format(column, row))
                 places = []
                 places.append(self.key_place(self.pl.web_post_br(), column, row))
                 places.append(self.key_place(self.pl.web_post_tr(), column, row + 1))
@@ -425,6 +431,7 @@ class DactylBase:
 
             if self.p.reduced_outer_keys:
                 if column == 1:
+                    debugprint("TYPE4 COL: {}, ROW: {}".format(column, row))
                     places = []
                     places.append(self.key_place(self.pl.web_post_bl(), column + 1, iterrows))
                     places.append(self.key_place(self.pl.web_post_br(), column, iterrows))
@@ -432,6 +439,7 @@ class DactylBase:
                     places.append(self.key_place(self.pl.web_post_bl(), column + 1, iterrows + 1))
                     hulls.append(self.g.triangle_hulls(places))
                 if column == 3:
+                    debugprint("TYPE5 COL: {}, ROW: {}".format(column, row))
                     places = []
                     places.append(self.key_place(self.pl.web_post_br(), column, iterrows))
                     places.append(self.key_place(self.pl.web_post_bl(), column + 1, iterrows))
@@ -439,7 +447,9 @@ class DactylBase:
                     places.append(self.key_place(self.pl.web_post_br(), column, iterrows + 1))
                     hulls.append(self.g.triangle_hulls(places))
 
-        return self.g.union(hulls)
+        # raise Exception("STOPPING")
+        # return self.g.union(hulls)
+        return hulls
 
     ##########
     ## Case ##
@@ -460,7 +470,8 @@ class DactylBase:
             y_offset = 0.0
             z_offset = 0.0
 
-        return list(pos - np.array([self.p.left_wall_ext_x_offset - x_offset, -y_offset, self.p.left_wall_ext_z_offset + z_offset]))
+        return list(pos - np.array(
+            [self.p.left_wall_ext_x_offset - x_offset, -y_offset, self.p.left_wall_ext_z_offset + z_offset]))
 
     def left_key_place(self, shape, row, direction, low_corner=False):
         debugprint("left_key_place()")
@@ -469,7 +480,7 @@ class DactylBase:
 
     def wall_locate1(self, dx, dy):
         debugprint("wall_locate1()")
-#        return [dx * self.p.wall_thickness, dy * self.p.wall_thickness, -1]
+        #        return [dx * self.p.wall_thickness, dy * self.p.wall_thickness, -1]
         return [dx * self.p.wall_thickness, dy * self.p.wall_thickness, 0]
 
     def wall_locate2(self, dx, dy, offsets=None):
@@ -496,7 +507,6 @@ class DactylBase:
                 -offsets[2],
             ]
 
-
     def wall_brace(self, place1, dx1, dy1, post1, place2, dx2, dy2, post2, wall=None, wall2=None, skeleton=False,
                    skel_bottom=False):
         debugprint("wall_brace()")
@@ -521,7 +531,7 @@ class DactylBase:
             )
             offsets13 = (
                 self.p.wall_offset[0],
-                self.p.back_wall_offset[1] + self.p.wall_base_back_thickness-self.p.wall_base_y_thickness,
+                self.p.back_wall_offset[1] + self.p.wall_base_back_thickness - self.p.wall_base_y_thickness,
                 self.p.back_wall_offset[2]
             )
 
@@ -536,10 +546,9 @@ class DactylBase:
             )
             offsets23 = (
                 self.p.wall_offset[0],
-                self.p.back_wall_offset[1] + self.p.wall_base_back_thickness-self.p.wall_base_y_thickness,
+                self.p.back_wall_offset[1] + self.p.wall_base_back_thickness - self.p.wall_base_y_thickness,
                 self.p.back_wall_offset[2]
             )
-
 
         hulls.append(place1(post1))
         if not skeleton:
@@ -616,7 +625,7 @@ class DactylBase:
             )])
 
         if not skeleton:
-            shape = self.g.union([shape,  self.key_wall_brace(
+            shape = self.g.union([shape, self.key_wall_brace(
                 self.p.lastcol, 0, 0, 1, self.pl.web_post_tr(),
                 self.p.lastcol, 0, 1, 0, self.pl.web_post_tr(),
                 wall='back', wall2='right'
@@ -764,9 +773,6 @@ class DactylBase:
             ])
         )
 
-
-
-
     def screw_insert_shape(self, bottom_radius, top_radius, height):
         debugprint('screw_insert_shape()')
         if bottom_radius == top_radius:
@@ -787,8 +793,6 @@ class DactylBase:
         shift_left = column == 0
         shift_up = (not (shift_right or shift_left)) and (row == 0)
         shift_down = (not (shift_right or shift_left)) and (row >= self.p.lastrow)
-
-
 
         if self.p.screws_offset == 'INSIDE':
             # debugprint('Shift Inside')
@@ -867,10 +871,9 @@ class DactylBase:
         for position in positions:
             scr_shape = self.screw_insert_shape(bottom_radius, top_radius, height)
             scr_shape = self.g.translate(scr_shape, [position[0], position[1], height / 2])
-            scr_shape = self.g.translate(scr_shape,(0, 0, offset))
+            scr_shape = self.g.translate(scr_shape, (0, 0, offset))
             shapes.append(scr_shape)
         return shapes
-
 
     def screw_insert_all_shapes(self, bottom_radius, top_radius, height, offset=0.0):
         print('screw_insert_all_shapes()')
@@ -898,8 +901,6 @@ class DactylBase:
             offset=-.01
         )
 
-
-
     def screw_insert_outers(self, offset=0.0, thumb=False):
         # screw_insert_bottom_radius + screw_insert_wall
         # screw_insert_top_radius + screw_insert_wall
@@ -911,7 +912,6 @@ class DactylBase:
             return self.screw_insert_thumb_shapes(bottom_radius, top_radius, height, offset=offset)
         else:
             return self.screw_insert_all_shapes(bottom_radius, top_radius, height, offset=offset)
-
 
     def screw_insert_screw_holes(self, thumb=False):
         if thumb:
@@ -926,15 +926,16 @@ class DactylBase:
 
         shape = self.g.union([self.key_holes()])
         if debug_exports:
-            self.g. self.g.export_file(shape=shape, fname=path.join(r"..", "things", r"debug_key_plates"))
-        connector_shape = self.connectors()
-        shape = self.g.union([shape, connector_shape])
+            self.g.export_file(shape=shape, fname=path.join(r"..", "things", r"debug_key_plates"))
+        connectors = self.connectors()
+        shape = self.g.union([shape, *connectors])
+        raise Exception("STOPPING")
         if debug_exports:
-             self.g.export_file(shape=shape, fname=path.join(r"..", "things", r"debug_connector_shape"))
+            self.g.export_file(shape=shape, fname=path.join(r"..", "things", r"debug_connector_shape"))
 
         walls_shape = self.case_walls(skeleton=self.p.skeletal)
         if debug_exports:
-             self.g.export_file(shape=walls_shape, fname=path.join(r"..", "things", r"debug_walls_shape"))
+            self.g.export_file(shape=walls_shape, fname=path.join(r"..", "things", r"debug_walls_shape"))
 
         s2 = self.g.union([walls_shape])
         s2 = self.g.union([s2, *self.screw_insert_outers()])
@@ -977,8 +978,6 @@ class DactylBase:
         for module in self.modules:
             thumb_section = module.update_thumb(thumb_section)
 
-
-
         has_trackball = False
         if self.cluster.is_tb:
             print("Has Trackball")
@@ -986,20 +985,20 @@ class DactylBase:
             has_trackball = True
             thumb_section = self.g.difference(thumb_section, [tbprecut])
             if debug_exports:
-                 self.g.export_file(shape=thumb_section,
-                            fname=path.join(r"..", "things", r"debug_thumb_test_1_shape".format(self.side)))
+                self.g.export_file(shape=thumb_section,
+                                   fname=path.join(r"..", "things", r"debug_thumb_test_1_shape".format(self.side)))
             thumb_section = self.g.union([thumb_section, tb])
             if debug_exports:
-                 self.g.export_file(shape=thumb_section,
-                            fname=path.join(r"..", "things", r"debug_thumb_test_2_shape".format(self.side)))
+                self.g.export_file(shape=thumb_section,
+                                   fname=path.join(r"..", "things", r"debug_thumb_test_2_shape".format(self.side)))
             thumb_section = self.g.difference(thumb_section, [tbcutout])
             if debug_exports:
-                 self.g.export_file(shape=thumb_section,
-                            fname=path.join(r"..", "things", r"debug_thumb_test_3_shape".format(self.side)))
+                self.g.export_file(shape=thumb_section,
+                                   fname=path.join(r"..", "things", r"debug_thumb_test_3_shape".format(self.side)))
             thumb_section = self.g.union([thumb_section, sensor])
             if debug_exports:
-                 self.g.export_file(shape=thumb_section,
-                            fname=path.join(r"..", "things", r"debug_thumb_test_4_shape".format(self.side)))
+                self.g.export_file(shape=thumb_section,
+                                   fname=path.join(r"..", "things", r"debug_thumb_test_4_shape".format(self.side)))
 
         if self.pl.pp.plate_pcb_clear:
             thumb_section = self.g.difference(thumb_section, [self.cluster.thumb_pcb_plate_cutouts()])
@@ -1010,7 +1009,8 @@ class DactylBase:
         thumb_section = self.g.difference(thumb_section, [block])
 
         if debug_exports:
-             self.g.export_file(shape=thumb_section, fname=path.join(r"..", "things", r"debug_thumb_test_5_shape".format(self.side)))
+            self.g.export_file(shape=thumb_section,
+                               fname=path.join(r"..", "things", r"debug_thumb_test_5_shape".format(self.side)))
 
         if self.p.separable_thumb:
             thumb_section = self.g.difference(thumb_section, [main_shape])
@@ -1021,8 +1021,8 @@ class DactylBase:
         else:
             main_shape = self.g.union([main_shape, thumb_section])
             if debug_exports:
-                 self.g.export_file(shape=main_shape,
-                            fname=path.join(r"..", "things", r"debug_thumb_test_6_shape".format(self.side)))
+                self.g.export_file(shape=main_shape,
+                                   fname=path.join(r"..", "things", r"debug_thumb_test_6_shape".format(self.side)))
             if self.p.show_caps:
                 main_shape = self.g.add([main_shape, self.cluster.thumbcaps()])
                 if has_trackball:
@@ -1076,7 +1076,8 @@ class DactylBase:
                 item = self.g.translate(item, [0, 0, -10])
                 shape = self.g.difference(shape, [item])
 
-            tool = self.screw_insert_thumb_shapes(self.p.screw_hole_diameter / 2., self.p.screw_hole_diameter / 2., 350, )
+            tool = self.screw_insert_thumb_shapes(self.p.screw_hole_diameter / 2., self.p.screw_hole_diameter / 2.,
+                                                  350, )
             for item in tool:
                 item = self.g.translate(item, [0, 0, -10])
                 shape = self.g.difference(shape, [item])
@@ -1114,11 +1115,12 @@ class DactylBase:
             # inner_plate = cq.Workplane('XY').add(cq.Face.makeFromWires(inner_wire))
             if wedge_angle is not None:
                 0
-                #NOT IMPLEMENTED
+                # NOT IMPLEMENTED
                 # cq.Workplane('XY').add(cq.Solid.revolve(outerWire, innerWires, angleDegrees, axisStart, axisEnd))
             else:
                 inner_shape = cq.Workplane('XY').add(cq.Solid.extrudeLinear(outerWire=inner_wire, innerWires=[],
-                                                                            vecNormal=cq.Vector(0, 0, self.p.base_thickness)))
+                                                                            vecNormal=cq.Vector(0, 0,
+                                                                                                self.p.base_thickness)))
                 inner_shape = self.g.translate(inner_shape, (0, 0, -self.p.base_rim_thickness))
 
                 holes = []
@@ -1194,7 +1196,8 @@ class DactylBase:
 
         else:
             print('SYMMETRIC')
-            self.g.export_file(shape=self.g.mirror(mod_r, 'YZ'), fname=path.join(self.p.save_path, self.p.config_name + r"_left"))
+            self.g.export_file(shape=self.g.mirror(mod_r, 'YZ'),
+                               fname=path.join(self.p.save_path, self.p.config_name + r"_left"))
 
             lbase = self.g.mirror(base, 'YZ')
             self.g.export_file(shape=lbase, fname=path.join(self.p.save_path, self.p.config_name + r"_left_plate"))
@@ -1207,10 +1210,6 @@ class DactylBase:
                 self.p.config_name + r"_right_plate",
                 self.p.config_name + r"_left_plate"
             ])
-
-
-
-
 
 
 if __name__ == '__main__':

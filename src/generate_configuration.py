@@ -1,17 +1,24 @@
+
 import sys
 import getopt
 import os
 import json
+
+print(os.getcwd())
+os.chdir(r'E:\Users\jashreve\git\dactyl-keyboard-JS\src')
+print(os.getcwd())
 
 
 pi = 3.14159
 d2r = pi / 180
 r2d = 180 / pi
 
+
+
 shape_config = {
 
     # 'ENGINE': 'solid',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
-    'ENGINE': 'cadquery',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    'ENGINE': 'blender',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
 
 
     ######################
@@ -502,5 +509,5 @@ if __name__ == '__main__':
     save_config()
 
     ## HERE FOR QUICK TESTING, SHOULD BE COMMENTED ON COMMIT
-    # from dactyl_manuform import *
-    # run()
+    from dactyl_manuform import *
+    run()

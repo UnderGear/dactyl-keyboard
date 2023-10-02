@@ -10,6 +10,9 @@ def debugprint(info):
         print(info)
 
 
+def duplicate(shape):
+    return shape
+
 def box(width, height, depth):
     return cq.Workplane("XY").box(width, height, depth)
 

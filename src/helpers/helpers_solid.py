@@ -7,6 +7,9 @@ def debugprint(info):
     if debug_trace:
         print(info)
 
+def duplicate(shape):
+    return shape
+
 def box(width, height, depth):
     return sl.cube([width, height, depth], center=True)
 

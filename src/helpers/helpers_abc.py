@@ -1,6 +1,6 @@
-import cadquery as cq
-from scipy.spatial import ConvexHull as sphull
-import numpy as np
+#import cadquery as cq
+#from scipy.spatial import ConvexHull as sphull
+#import numpy as np
 
 
 debug_trace = False
@@ -9,6 +9,8 @@ def debugprint(info):
     if debug_trace:
         print(info)
 
+def duplicate(shape):
+    return 'shape'
 
 def box(width, height, depth):
     return 'shape'

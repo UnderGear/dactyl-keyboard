@@ -89,7 +89,7 @@ from typing import Any, Sequence, Tuple, Optional
 #
 # ]
 
-debug_trace=False
+debug_trace = True
 
 def deg2rad(degrees: float) -> float:
     return degrees * pi / 180
@@ -156,9 +156,9 @@ def debugprint(info):
 
 @dataclass_json
 @dataclass
-class HolePlateParameters:
+class BlankPlateParameters:
     package: str = 'shapes.plates'
-    class_name: str = 'HolePlate'
+    class_name: str = 'BlankPlate'
 
     keyswitch_height: float = 14.0
     keyswitch_width: float = 14.0
@@ -169,6 +169,177 @@ class HolePlateParameters:
     sa_double_length: float = 37.5
 
     plate_rim: float = 2.55
+
+
+class BlankPlate:
+    g: helpers_abc
+    parameter_type = BlankPlateParameters
+    symmetric = True
+
+    def __init__(self, parent, p_parameters=None):
+        self._parent = parent
+        self.p = parent.p
+        self.g = parent.g
+
+        if p_parameters is None:
+            self.pp = self.parameter_type()
+        else:
+            self.pp = p_parameters
+
+        self.process_parameters()
+
+        self._plate = None
+
+    def process_parameters(self):
+        # Process parameters and feed the mount dimensions back
+        print('SETTING PLATE PARAMETERS')
+        self.p.mount_width = self.pp.keyswitch_width + 2 * self.pp.plate_rim
+        self.p.mount_height = self.pp.keyswitch_height + 2 * self.pp.plate_rim
+        self.p.mount_thickness = self.pp.plate_thickness
+
+        self.pp.double_plate_height = (self.pp.sa_double_length - self.p.mount_height) / 3
+
+        self.p.cap_top_height = self.pp.plate_thickness + self.pp.sa_profile_key_height
+
+    def plate_shape(self):
+        plate = self.g.box(self.p.mount_width, self.p.mount_height, self.p.mount_thickness)
+        plate = self.g.translate(plate, (0.0, 0.0, self.p.mount_thickness / 2.0))
+
+        return plate
+
+    def single_plate(self):
+        if self._plate is None:
+            plate = self.plate_shape()
+
+            if self.pp.plate_holes:
+                plate = self.plate_screw_holes(
+                    plate,
+                    plate_holes_width=self.pp.plate_holes_width, plate_holes_height=self.pp.plate_holes_height,
+                    plate_holes_xy_offset=self.pp.plate_holes_xy_offset,
+                    plate_holes_diameter=self.pp.plate_holes_diameter, plate_holes_depth=self.pp.plate_holes_depth
+                )
+
+            if self.pp.plate_file is not None:
+                plate = self.add_plate_file(plate)
+
+            self._plate = plate
+
+        plate = self.g.duplicate(self._plate)
+
+        if self._parent.side == "left" and not self.symmetric:
+            plate = self.g.mirror(plate, 'YZ')
+
+        return plate
+
+
+    ####################
+    ## Web Connectors ##
+    ####################
+
+    def web_post(self):
+        debugprint('web_post()')
+        post = self.g.box(self.p.post_size, self.p.post_size, self.p.web_thickness)
+        post = self.g.translate(post, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
+        return post
+
+    def web_post_tr(self, wide=False):
+        mount_width = self.p.mount_width
+        mount_height = self.p.mount_height
+        post_adj = self.p.post_adj
+
+        if wide:
+            w_divide = 1.2
+        else:
+            w_divide = 2.0
+
+        return self.g.translate(self.web_post(),
+                                ((mount_width / w_divide) - post_adj, (mount_height / 2) - post_adj, 0))
+
+    def web_post_br(self, wide=False):
+        mount_width = self.p.mount_width
+        mount_height = self.p.mount_height
+        post_adj = self.p.post_adj
+        if wide:
+            w_divide = 1.2
+        else:
+            w_divide = 2.0
+        return self.g.translate(self.web_post(),
+                                ((mount_width / w_divide) - post_adj, -(mount_height / 2) + post_adj, 0))
+
+    def web_post_tl(self, wide=False):
+        mount_width = self.p.mount_width
+        mount_height = self.p.mount_height
+        post_adj = self.p.post_adj
+        if wide:
+            w_divide = 1.2
+        else:
+            w_divide = 2.0
+        return self.g.translate(self.web_post(),
+                                (-(mount_width / w_divide) + post_adj, (mount_height / 2) - post_adj, 0))
+
+    def web_post_bl(self, wide=False):
+        mount_width = self.p.mount_width
+        mount_height = self.p.mount_height
+        post_adj = self.p.post_adj
+        if wide:
+            w_divide = 1.2
+        else:
+            w_divide = 2.0
+        return self.g.translate(self.web_post(),
+                                (-(mount_width / w_divide) + post_adj, -(mount_height / 2) + post_adj, 0))
+
+    def adjustable_square_plate(self, Uwidth=1.5, Uheight=1.5):
+        width = usize_dimension(Usize=Uwidth)
+        height = usize_dimension(Usize=Uheight)
+        print("width: {}, height: {}, thickness:{}".format(width, height, self.p.web_thickness))
+        shape = self.g.box(width, height, self.p.web_thickness)
+        shape = self.g.difference(shape, [
+            self.g.box(self.p.mount_width - .01, self.p.mount_height - .01, 2 * self.p.web_thickness)])
+        # shape = self.g.translate(shape, (0, 0, web_thickness / 2))
+        shape = self.g.translate(shape, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
+
+        return shape
+
+    def adjustable_plate_size(self, Usize=1.5):
+        return (Usize * self.pp.sa_length - self.p.mount_height) / 2
+
+    def adjustable_plate_half(self, Usize=1.5):
+        debugprint('double_plate()')
+        adjustable_plate_height = self.adjustable_plate_size(Usize)
+        top_plate = self.g.box(self.p.mount_width, adjustable_plate_height, self.p.web_thickness)
+        top_plate = self.g.translate(top_plate,
+                                     [0, (adjustable_plate_height + self.p.mount_height) / 2,
+                                      self.pp.plate_thickness - (self.p.web_thickness / 2)]
+                                     )
+        return top_plate
+
+    def adjustable_plate(self, Usize=1.5):
+        debugprint('double_plate()')
+        top_plate = self.adjustable_plate_half(Usize)
+        return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
+
+    def double_plate_half(self):
+        debugprint('double_plate()')
+
+        top_plate = self.g.box(self.p.mount_width, self.pp.double_plate_height, self.p.web_thickness)
+        top_plate = self.g.translate(top_plate,
+                                     [0, (self.pp.double_plate_height + self.p.mount_height) / 2,
+                                      self.pp.plate_thickness - (self.p.web_thickness / 2)]
+                                     )
+        return top_plate
+
+    def double_plate(self):
+        debugprint('double_plate()')
+        top_plate = self.double_plate_half()
+        return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
+
+
+
+@dataclass_json
+@dataclass
+class HolePlateParameters(BlankPlateParameters):
+    package: str = 'shapes.plates'
+    class_name: str = 'HolePlate'
 
     hotswap: bool = False
 
@@ -207,8 +378,7 @@ class HolePlateParameters:
     pcb_hole_pattern_height: float = 14.3
 
 
-
-class HolePlate:
+class HolePlate(BlankPlate):
     g: helpers_abc
     # parent: dm.DactylBase
 
@@ -281,11 +451,10 @@ class HolePlate:
 
             self._plate = plate
 
-        else:
-            plate = self._plate
+        plate = self.g.duplicate(self._plate)
             
         if self._parent.side == "left" and not self.symmetric:
-            plate = self.g.mirror(self._plate, 'YZ')
+            plate = self.g.mirror(plate, 'YZ')
 
         return plate
 
@@ -466,98 +635,98 @@ class HolePlate:
     ## Web Connectors ##
     ####################
 
-    def web_post(self):
-        debugprint('web_post()')
-        post = self.g.box(self.p.post_size, self.p.post_size, self.p.web_thickness)
-        post = self.g.translate(post, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
-        return post
+    # def web_post(self):
+    #     debugprint('web_post()')
+    #     post = self.g.box(self.p.post_size, self.p.post_size, self.p.web_thickness)
+    #     post = self.g.translate(post, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
+    #     return post
+    #
+    # def web_post_tr(self, wide=False):
+    #     mount_width = self.p.mount_width
+    #     mount_height = self.p.mount_height
+    #     post_adj = self.p.post_adj
+    #
+    #     if wide:
+    #         w_divide = 1.2
+    #     else:
+    #         w_divide = 2.0
+    #
+    #     return self.g.translate(self.web_post(),
+    #                             ((mount_width / w_divide) - post_adj, (mount_height / 2) - post_adj, 0))
+    #
+    # def web_post_br(self, wide=False):
+    #     mount_width = self.p.mount_width
+    #     mount_height = self.p.mount_height
+    #     post_adj = self.p.post_adj
+    #     if wide:
+    #         w_divide = 1.2
+    #     else:
+    #         w_divide = 2.0
+    #     return self.g.translate(self.web_post(), ((mount_width / w_divide) - post_adj, -(mount_height / 2) + post_adj, 0))
+    #
+    # def web_post_tl(self, wide=False):
+    #     mount_width = self.p.mount_width
+    #     mount_height = self.p.mount_height
+    #     post_adj = self.p.post_adj
+    #     if wide:
+    #         w_divide = 1.2
+    #     else:
+    #         w_divide = 2.0
+    #     return self.g.translate(self.web_post(), (-(mount_width / w_divide) + post_adj, (mount_height / 2) - post_adj, 0))
+    #
+    # def web_post_bl(self, wide=False):
+    #     mount_width = self.p.mount_width
+    #     mount_height = self.p.mount_height
+    #     post_adj = self.p.post_adj
+    #     if wide:
+    #         w_divide = 1.2
+    #     else:
+    #         w_divide = 2.0
+    #     return self.g.translate(self.web_post(), (-(mount_width / w_divide) + post_adj, -(mount_height / 2) + post_adj, 0))
 
-    def web_post_tr(self, wide=False):
-        mount_width = self.p.mount_width
-        mount_height = self.p.mount_height
-        post_adj = self.p.post_adj
-
-        if wide:
-            w_divide = 1.2
-        else:
-            w_divide = 2.0
-
-        return self.g.translate(self.web_post(),
-                                ((mount_width / w_divide) - post_adj, (mount_height / 2) - post_adj, 0))
-
-    def web_post_br(self, wide=False):
-        mount_width = self.p.mount_width
-        mount_height = self.p.mount_height
-        post_adj = self.p.post_adj
-        if wide:
-            w_divide = 1.2
-        else:
-            w_divide = 2.0
-        return self.g.translate(self.web_post(), ((mount_width / w_divide) - post_adj, -(mount_height / 2) + post_adj, 0))
-
-    def web_post_tl(self, wide=False):
-        mount_width = self.p.mount_width
-        mount_height = self.p.mount_height
-        post_adj = self.p.post_adj
-        if wide:
-            w_divide = 1.2
-        else:
-            w_divide = 2.0
-        return self.g.translate(self.web_post(), (-(mount_width / w_divide) + post_adj, (mount_height / 2) - post_adj, 0))
-
-    def web_post_bl(self, wide=False):
-        mount_width = self.p.mount_width
-        mount_height = self.p.mount_height
-        post_adj = self.p.post_adj
-        if wide:
-            w_divide = 1.2
-        else:
-            w_divide = 2.0
-        return self.g.translate(self.web_post(), (-(mount_width / w_divide) + post_adj, -(mount_height / 2) + post_adj, 0))
-
-    def adjustable_square_plate(self, Uwidth=1.5, Uheight=1.5):
-        width = usize_dimension(Usize=Uwidth)
-        height = usize_dimension(Usize=Uheight)
-        print("width: {}, height: {}, thickness:{}".format(width, height, self.p.web_thickness))
-        shape = self.g.box(width, height, self.p.web_thickness)
-        shape = self.g.difference(shape, [self.g.box(self.p.mount_width - .01, self.p.mount_height - .01, 2 * self.p.web_thickness)])
-        # shape = self.g.translate(shape, (0, 0, web_thickness / 2))
-        shape = self.g.translate(shape, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
-
-        return shape
-
-    def adjustable_plate_size(self, Usize=1.5):
-        return (Usize * self.pp.sa_length - self.p.mount_height) / 2
-
-    def adjustable_plate_half(self, Usize=1.5):
-        debugprint('double_plate()')
-        adjustable_plate_height = self.adjustable_plate_size(Usize)
-        top_plate = self.g.box(self.p.mount_width, adjustable_plate_height, self.p.web_thickness)
-        top_plate = self.g.translate(top_plate,
-                                     [0, (adjustable_plate_height + self.p.mount_height) / 2,
-                                      self.pp.plate_thickness - (self.p.web_thickness / 2)]
-                                     )
-        return top_plate
-
-    def adjustable_plate(self, Usize=1.5):
-        debugprint('double_plate()')
-        top_plate = self.adjustable_plate_half(Usize)
-        return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
-
-    def double_plate_half(self):
-        debugprint('double_plate()')
-
-        top_plate = self.g.box(self.p.mount_width, self.pp.double_plate_height, self.p.web_thickness)
-        top_plate = self.g.translate(top_plate,
-                                     [0, (self.pp.double_plate_height + self.p.mount_height) / 2,
-                                      self.pp.plate_thickness - (self.p.web_thickness / 2)]
-                                     )
-        return top_plate
-
-    def double_plate(self):
-        debugprint('double_plate()')
-        top_plate = self.double_plate_half()
-        return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
+    # def adjustable_square_plate(self, Uwidth=1.5, Uheight=1.5):
+    #     width = usize_dimension(Usize=Uwidth)
+    #     height = usize_dimension(Usize=Uheight)
+    #     print("width: {}, height: {}, thickness:{}".format(width, height, self.p.web_thickness))
+    #     shape = self.g.box(width, height, self.p.web_thickness)
+    #     shape = self.g.difference(shape, [self.g.box(self.p.mount_width - .01, self.p.mount_height - .01, 2 * self.p.web_thickness)])
+    #     # shape = self.g.translate(shape, (0, 0, web_thickness / 2))
+    #     shape = self.g.translate(shape, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
+    #
+    #     return shape
+    #
+    # def adjustable_plate_size(self, Usize=1.5):
+    #     return (Usize * self.pp.sa_length - self.p.mount_height) / 2
+    #
+    # def adjustable_plate_half(self, Usize=1.5):
+    #     debugprint('double_plate()')
+    #     adjustable_plate_height = self.adjustable_plate_size(Usize)
+    #     top_plate = self.g.box(self.p.mount_width, adjustable_plate_height, self.p.web_thickness)
+    #     top_plate = self.g.translate(top_plate,
+    #                                  [0, (adjustable_plate_height + self.p.mount_height) / 2,
+    #                                   self.pp.plate_thickness - (self.p.web_thickness / 2)]
+    #                                  )
+    #     return top_plate
+    #
+    # def adjustable_plate(self, Usize=1.5):
+    #     debugprint('double_plate()')
+    #     top_plate = self.adjustable_plate_half(Usize)
+    #     return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
+    #
+    # def double_plate_half(self):
+    #     debugprint('double_plate()')
+    #
+    #     top_plate = self.g.box(self.p.mount_width, self.pp.double_plate_height, self.p.web_thickness)
+    #     top_plate = self.g.translate(top_plate,
+    #                                  [0, (self.pp.double_plate_height + self.p.mount_height) / 2,
+    #                                   self.pp.plate_thickness - (self.p.web_thickness / 2)]
+    #                                  )
+    #     return top_plate
+    #
+    # def double_plate(self):
+    #     debugprint('double_plate()')
+    #     top_plate = self.double_plate_half()
+    #     return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
 
 
 @dataclass_json
