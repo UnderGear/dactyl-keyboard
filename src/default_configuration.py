@@ -43,7 +43,7 @@ class ShapeConfiguration:
     ## Shape parameters ##
     ######################
 
-    blender_smooth: bool = True
+    blender_smooth: int = 3
 
     save_dir: str = '.'
     config_name: str = "DM"

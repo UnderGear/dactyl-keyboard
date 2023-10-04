@@ -968,7 +968,7 @@ class DactylBase:
             bdr_shape = bdr.boolean_cleanup(bdr_shape, dissolve_degenerate=2.0)
             bdr_shape = bdr.crease_base_vertices(bdr_shape)
             bdr_shape = bdr.dissolve_non_base(bdr_shape)
-            bdr_shape = bdr.subdivide_mesh(bdr_shape, level=3)
+            bdr_shape = bdr.subdivide_mesh(bdr_shape, level=self.p.blender_smooth)
 
             f_smoothed = path.join(r"..", "things", r"smoothed.stl")
             bdr.export_file(bdr_shape, fname=f_smoothed)
