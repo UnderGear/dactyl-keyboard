@@ -5,6 +5,7 @@ import os
 import copy
 import importlib
 from helpers import helpers_abc, freecad_that as freecad
+
 # from shapes.plates import
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass
@@ -347,17 +348,23 @@ class DactylBase:
             position, self.add_translate, self.rotate_around_x, self.rotate_around_y, column, row
         )
 
-    def key_holes(self):
-        debugprint('key_holes()')
+    def key_holes(self, blank=False, cutter=0):
+        self.pl.reset_plates()
+        debugprint('key_holes(blank={}, cutter={})'.format(blank, cutter))
         holes = []
         for column in range(self.p.ncols):
             for row in range(self.p.nrows):
                 if self.valid_key(column, row):
-                    holes.append(self.key_place(self.pl.single_plate(), column, row))
+                    if blank:
+                        holes.append(self.key_place(self.pl.construction_plate(), column, row))
+                    elif cutter > 0:
+                        holes.append(self.key_place(self.pl.construction_plate(cutter=cutter), column, row))
+                    else:
+                        holes.append(self.key_place(self.pl.single_plate(), column, row))
 
-        shape = self.g.union(holes)
-
-        return shape
+        #shape = self.g.union(holes)
+        # return shape
+        return holes
 
     def caps(self):
         caps = None
@@ -898,7 +905,7 @@ class DactylBase:
     def screw_insert_holes(self):
         return self.screw_insert_all_shapes(
             self.p.screw_insert_bottom_radius, self.p.screw_insert_top_radius, self.p.screw_insert_height + .02,
-            offset=-.01
+            offset=-.01,
         )
 
     def screw_insert_outers(self, offset=0.0, thumb=False):
@@ -924,12 +931,19 @@ class DactylBase:
     def model_side(self):
         print('model_right()')
 
-        shape = self.g.union([self.key_holes()])
+        # shape = self.g.union([self.key_holes()])
+        if self.p.blender_smooth:
+            plates = self.key_holes(blank=True)
+        else:
+            plates = self.key_holes()
+
         if debug_exports:
-            self.g.export_file(shape=shape, fname=path.join(r"..", "things", r"debug_key_plates"))
+            self.g.export_file(shape=self.g.union(plates), fname=path.join(r"..", "things", r"debug_key_plates"))
         connectors = self.connectors()
-        shape = self.g.union([shape, *connectors])
-        raise Exception("STOPPING")
+
+        # raise Exception("STOPPING")
+        shape = self.g.union([*plates, *connectors])
+        # raise Exception("STOPPING")
         if debug_exports:
             self.g.export_file(shape=shape, fname=path.join(r"..", "things", r"debug_connector_shape"))
 
@@ -938,13 +952,51 @@ class DactylBase:
             self.g.export_file(shape=walls_shape, fname=path.join(r"..", "things", r"debug_walls_shape"))
 
         s2 = self.g.union([walls_shape])
-        s2 = self.g.union([s2, *self.screw_insert_outers()])
+
+        shape = self.g.union([shape, s2])
+
+        if self.p.blender_smooth:
+            thumb_section, thumb_screw_outers, thumb_screw_holes, thumb_cutter, thumb_fill = self.cluster.generate_smooth_thumb()
+            shape = self.g.union([shape, thumb_section])
+            block = self.g.box(500, 500, 40)
+            block = self.g.translate(block, (0, 0, -20))
+            shape = self.g.difference(shape, [block])
+            f_to_smooth = path.abspath(path.join(r"..", "things", r"shape_for_smoothing"))
+            self.g.export_stl(shape=shape, fname=f_to_smooth)
+            import helpers.helpers_blender as bdr
+            bdr_shape = bdr.import_file(fname=f_to_smooth + ".stl")
+            bdr_shape = bdr.boolean_cleanup(bdr_shape, dissolve_degenerate=2.0)
+            bdr_shape = bdr.crease_base_vertices(bdr_shape)
+            bdr_shape = bdr.dissolve_non_base(bdr_shape)
+            bdr_shape = bdr.subdivide_mesh(bdr_shape, level=3)
+
+            f_smoothed = path.join(r"..", "things", r"smoothed.stl")
+            bdr.export_file(bdr_shape, fname=f_smoothed)
+            shape = self.g.import_stl(f_smoothed)
+            cutter_plates = self.key_holes(cutter=5.0)
+            # self.g.export_file(shape=self.g.union([*cutter_plates]),
+            #                    fname=path.join(r"..", "things", r"debug_cutter_plates"))
+            shape = self.g.difference(shape, cutter_plates)
+            shape = self.g.difference(shape, [thumb_cutter])
+            self.g.export_file(shape=self.g.union([shape]),
+                               fname=path.join(r"..", "things", r"debug_cutter_base"))
+            fill_plates = self.key_holes()
+            shape = self.g.union([shape, *fill_plates, thumb_fill])
+            # self.g.export_file(shape=self.g.union([*fill_plates]),
+            #                    fname=path.join(r"..", "things", r"debug_fill_plates"))
+            thumb_section = shape
+            # self.g.export_file(shape=shape,
+            #                    fname=path.join(r"..", "things", r"debug_smooth"))
+
+        shape = self.g.union([shape, *self.screw_insert_outers(), *thumb_screw_outers])
 
         if self.ctrl is not None:
-            s2 = self.ctrl.generate_controller_mount(s2)
+            shape = self.ctrl.generate_controller_mount(shape)
 
-        s2 = self.g.difference(s2, [self.g.union(self.screw_insert_holes())])
-        shape = self.g.union([shape, s2])
+        # shape = self.g.union([shape, s2])
+        # shape = self.g.difference(shape, [self.g.union(self.screw_insert_holes())])
+        shape = self.g.difference(shape, self.screw_insert_holes())
+        shape = self.g.difference(shape, thumb_screw_holes)
 
         if self.oled is not None:
             hole, frame = self.oled.oled_mount_frame()
@@ -953,27 +1005,17 @@ class DactylBase:
 
         for module in self.modules:
             shape = module.update_main(shape)
-        # if self.p.trackball_in_wall and (self.side == self.p.ball_side or self.p.ball_side == 'both') and self.p.separable_thumb:
-        #     tbprecut, tb, tbcutout, sensor, ball = self.generate_trackball_in_wall()
-        #
-        #     shape = self.g.difference(shape, [tbprecut])
-        #     #  self.g.export_file(shape=shape, fname=path.join(save_path, config_name + r"_test_1"))
-        #     shape = self.g.union([shape, tb])
-        #     #  self.g.export_file(shape=shape, fname=path.join(save_path, config_name + r"_test_2"))
-        #     shape = self.g.difference(shape, [tbcutout])
-        #     #  self.g.export_file(shape=shape, fname=path.join(save_path, config_name + r"_test_3a"))
-        #     #  self.g.export_file(shape=add([shape, sensor]), fname=path.join(save_path, config_name + r"_test_3b"))
-        #     shape = self.g.union([shape, sensor])
-        #
-        #     if self.p.show_caps:
-        #         shape = self.g.add([shape, ball])
 
         if self.pl.pp.plate_pcb_clear:
             shape = self.g.difference(shape, [self.plate_pcb_cutouts()])
 
         main_shape = shape
 
-        thumb_section = self.cluster.generate_thumb()
+        if not self.p.blender_smooth:
+            thumb_section, thumb_screw_outers, thumb_screw_holes = self.cluster.generate_thumb()
+
+        thumb_section = self.g.union([thumb_section, *thumb_screw_outers])
+        thumb_section = self.g.difference(thumb_section, thumb_screw_holes)
 
         for module in self.modules:
             thumb_section = module.update_thumb(thumb_section)
@@ -1003,10 +1045,11 @@ class DactylBase:
         if self.pl.pp.plate_pcb_clear:
             thumb_section = self.g.difference(thumb_section, [self.cluster.thumb_pcb_plate_cutouts()])
 
-        block = self.g.box(350, 350, 40)
-        block = self.g.translate(block, (0, 0, -20))
-        main_shape = self.g.difference(main_shape, [block])
-        thumb_section = self.g.difference(thumb_section, [block])
+        if not self.p.blender_smooth:
+            block = self.g.box(350, 350, 40)
+            block = self.g.translate(block, (0, 0, -20))
+            main_shape = self.g.difference(main_shape, [block])
+            thumb_section = self.g.difference(thumb_section, [block])
 
         if debug_exports:
             self.g.export_file(shape=thumb_section,
@@ -1019,7 +1062,8 @@ class DactylBase:
                 if has_trackball:
                     thumb_section = self.g.add([thumb_section, ball])
         else:
-            main_shape = self.g.union([main_shape, thumb_section])
+            if not self.p.blender_smooth:
+                main_shape = self.g.union([main_shape, thumb_section])
             if debug_exports:
                 self.g.export_file(shape=main_shape,
                                    fname=path.join(r"..", "things", r"debug_thumb_test_6_shape".format(self.side)))
@@ -1064,7 +1108,8 @@ class DactylBase:
             thumb_connector_shape = self.cluster.thumb_connectors()
             thumb_connection_shape = self.cluster.connection(skeleton=self.p.skeletal)
             thumb_section = self.g.union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
-            thumb_section = self.g.difference(thumb_section, self.screw_insert_holes(thumb=True))
+            # thumb_section = self.g.difference(thumb_section, self.screw_insert_holes(thumb=True))
+            thumb_section = self.g.difference(thumb_section, self.screw_insert_screw_holes(thumb=True))
 
             shape = self.g.union([
                 self.case_walls(),
@@ -1089,7 +1134,7 @@ class DactylBase:
             square = self.g.cq.Workplane('XY').rect(1000, 1000)
             for wire in square.wires().objects:
                 plane = self.g.cq.Workplane('XY').add(cq.Face.makeFromWires(wire))
-            shape = self.g.intersect(shape, plane)
+                shape = self.g.intersect(shape, plane)
 
             outside = shape.vertices(cq.DirectionMinMaxSelector(cq.Vector(1, 0, 0), True)).objects[0]
             sizes = []
@@ -1118,9 +1163,9 @@ class DactylBase:
                 # NOT IMPLEMENTED
                 # cq.Workplane('XY').add(cq.Solid.revolve(outerWire, innerWires, angleDegrees, axisStart, axisEnd))
             else:
-                inner_shape = cq.Workplane('XY').add(cq.Solid.extrudeLinear(outerWire=inner_wire, innerWires=[],
-                                                                            vecNormal=cq.Vector(0, 0,
-                                                                                                self.p.base_thickness)))
+                inner_shape = cq.Workplane('XY').add(cq.Solid.extrudeLinear(
+                    outerWire=inner_wire, innerWires=[],
+                    vecNormal=cq.Vector(0, 0, self.p.base_thickness)))
                 inner_shape = self.g.translate(inner_shape, (0, 0, -self.p.base_rim_thickness))
 
                 holes = []
@@ -1175,7 +1220,8 @@ class DactylBase:
         self.process_parameters('right')
         mod_r, tmb_r = self.model_side()
         self.g.export_file(shape=mod_r, fname=path.join(self.p.save_path, self.p.config_name + r"_right"))
-        self.g.export_file(shape=tmb_r, fname=path.join(self.p.save_path, self.p.config_name + r"_thumb_right"))
+        if not self.p.blender_smooth:
+            self.g.export_file(shape=tmb_r, fname=path.join(self.p.save_path, self.p.config_name + r"_thumb_right"))
 
         # base = baseplate(mod_r, tmb_r)
         base = self.baseplate()
@@ -1188,7 +1234,8 @@ class DactylBase:
 
             mod_l, tmb_l = self.model_side()
             self.g.export_file(shape=mod_l, fname=path.join(self.p.save_path, self.p.config_name + r"_left"))
-            self.g.export_file(shape=tmb_l, fname=path.join(self.p.save_path, self.p.config_name + r"_thumb_left"))
+            if not self.p.blender_smooth:
+                self.g.export_file(shape=tmb_l, fname=path.join(self.p.save_path, self.p.config_name + r"_thumb_left"))
 
             base_l = self.g.mirror(self.baseplate(), 'YZ')
             self.g.export_file(shape=base_l, fname=path.join(self.p.save_path, self.p.config_name + r"_left_plate"))

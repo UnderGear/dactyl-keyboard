@@ -152,11 +152,19 @@ class DefaultCluster(ca.ClusterBase):
             t1.add(self.thumb_15x_layout(self.pl.keycap(1.5), cap=True))
         return t1
 
-    def thumb(self):
+    def thumb(self, blank=False, cutter=0):
         print('thumb()')
-        shape = self.thumb_1x_layout(self.g.rotate(self.pl.single_plate(), (0, 0, -90)))
-        shape = self.g.union([shape, self.thumb_15x_layout(self.g.rotate(self.pl.single_plate(), (0, 0, -90)))])
-        shape = self.g.union([shape, self.thumb_15x_layout(self.pl.double_plate(), plate=False)])
+        if blank:
+            cutter = 1
+
+        if cutter > 0:
+            shape = self.thumb_1x_layout(self.g.rotate(self.pl.construction_plate(cutter=cutter), (0, 0, -90)))
+            shape = self.g.union([shape, self.thumb_15x_layout(self.g.rotate(self.pl.construction_plate(cutter=cutter), (0, 0, -90)))])
+            shape = self.g.union([shape, self.thumb_15x_layout(self.pl.double_plate(cutter=cutter), plate=False)])
+        else:
+            shape = self.thumb_1x_layout(self.g.rotate(self.pl.single_plate(), (0, 0, -90)))
+            shape = self.g.union([shape, self.thumb_15x_layout(self.g.rotate(self.pl.single_plate(), (0, 0, -90)))])
+            shape = self.g.union([shape, self.thumb_15x_layout(self.pl.double_plate(), plate=False)])
 
         return shape
 

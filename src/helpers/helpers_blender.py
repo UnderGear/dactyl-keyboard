@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+import random
 import os
 import sys
 import time
@@ -71,9 +72,11 @@ def cylinder(radius, height, segments=8):
     return shape
 
 
-def sphere(radius, subdivisions=3):
+def sphere(radius, scale=None, subdivisions=3):
     clear_selection()
-    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=subdivisions, radius=radius)
+    if scale is None:
+        scale = (1, 1, 1)
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=subdivisions, radius=radius, scale=scale)
     shape = bpy.context.object
     clear_selection()
     debugprint("CREATED SPHERE:  {}".format(shape))
@@ -155,10 +158,10 @@ def mirror(shape, plane=None):
 
 def boolean_cleanup(
         shape,
-        remove_doubles_threshold=.01,
-        dissolve_limited=True,
+        remove_doubles_threshold=0.01,
+        dissolve_limited=.01,
         vert_connect_concave=True,
-        dissolve_degenerate=True,
+        dissolve_degenerate= 0.15,
         delete_loose=True,
         collapse_non_manifold=False,
         beautify_faces=False,
@@ -176,13 +179,13 @@ def boolean_cleanup(
 
     bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
 
-    if (dissolve_limited):
-        bpy.ops.mesh.dissolve_limited(angle_limit=0.01)
+    if (dissolve_limited > 0):
+        bpy.ops.mesh.dissolve_limited(angle_limit=dissolve_limited)
 
     if (vert_connect_concave):
         bpy.ops.mesh.vert_connect_concave()
-    if (dissolve_degenerate):
-        bpy.ops.mesh.dissolve_degenerate()
+    if (dissolve_degenerate > 0):
+        bpy.ops.mesh.dissolve_degenerate(threshold=dissolve_degenerate)
 
     if (delete_loose):
         bpy.ops.mesh.delete_loose()
@@ -193,17 +196,17 @@ def boolean_cleanup(
     # if (delete_operands):
     #     D.objects.remove(bool_ob, do_unlink=True)
 
-    if (dissolve_limited):
+    if (dissolve_limited > 0):
         bpy.ops.object.modifier_add(type='DECIMATE')
         bpy.context.object.modifiers["Decimate"].decimate_type = 'DISSOLVE'
-        bpy.context.object.modifiers["Decimate"].angle_limit = 0.001
+        bpy.context.object.modifiers["Decimate"].angle_limit = dissolve_limited
         bpy.ops.object.modifier_apply(modifier="Decimate")
 
     bpy.ops.object.editmode_toggle()
     bpy.ops.mesh.select_all(action='SELECT')
 
-    if (dissolve_degenerate):
-        bpy.ops.mesh.dissolve_degenerate()
+    if (dissolve_degenerate > 0):
+        bpy.ops.mesh.dissolve_degenerate(threshold=dissolve_degenerate)
 
     bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
 
@@ -236,20 +239,25 @@ def boolean_cleanup(
         bpy.ops.mesh.normals_make_consistent(inside=False)
         bpy.ops.object.editmode_toggle()
 
-    return True
+    return shape
 
 
-def union(shapes, cleanup=True):
+def union(shapes, cleanup=True, jitter=0):
     clear_selection()
-    shape = None
+    shape = shapes.pop(0)
+    shapes.sort(key=lambda o: (o.location - shape.location).length)
     debugprint("UNION SHAPES: {}".format(shapes))
     for item in shapes:
         if item is None:
             continue
-        if shape is None:
-            shape = item
-
         elif not item == shape:
+            if jitter > 0:
+                print(f"jittering {item.location}")
+                item.location.x += random.uniform(-jitter, jitter)
+                item.location.y += random.uniform(-jitter, jitter)
+                item.location.z += random.uniform(-jitter, jitter)
+                print(f"jittered {item.location}")
+
             select(shape)
             bpy.ops.object.modifier_add(type='BOOLEAN')
             bpy.context.object.modifiers["Boolean"].operation = 'UNION'
@@ -456,17 +464,7 @@ def extrude_poly(outer_poly, inner_polys=None, height=1):
 def import_file(fname, convexity=5):
     debugprint("IMPORTING FROM {}".format(fname))
     clear_selection()
-    bpy.ops.import_mesh.stl(
-        filepath=fname,
-        filter_glob='*.stl',
-        files=None,
-        directory='',
-        global_scale=1.0,
-        use_scene_unit=False,
-        use_facet_normal=False,
-        axis_forward='Y',
-        axis_up='Z'
-    )
+    bpy.ops.import_mesh.stl(filepath=fname, filter_glob="*.stl")
     shape = bpy.context.object
     clear_selection()
     return shape
@@ -475,9 +473,8 @@ def import_file(fname, convexity=5):
 def export_file(shape, fname):
     debugprint("EXPORTING TO {}".format(fname))
     select(shape)
-
-    dat = bpy.ops.export_mesh.stl(
-        filepath='',
+    bpy.ops.export_mesh.stl(
+        filepath=fname,
         check_existing=True,
         filter_glob='*.stl',
         use_selection=True,
@@ -485,18 +482,66 @@ def export_file(shape, fname):
         use_scene_unit=False,
         ascii=False,
         use_mesh_modifiers=True,
-        batch_mode='OFF',
-        global_space=((0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 0.0)),
         axis_forward='Y',
         axis_up='Z'
     )
     clear_selection()
-    return dat
+
 
 
 def export_dxf(shape, fname):
     debugprint("NO DXF EXPORT FOR SOLID".format(fname))
     pass
+
+
+
+
+
+
+def select_vertices_from_shape(shape, x=None, y=None, z=None):
+    bpy.ops.object.mode_set(mode='EDIT')
+    ob = shape
+    me = ob.data
+    if not me.is_editmode:
+        select(ob)
+        bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.from_edit_mesh(me)
+    bm.select_mode = {'VERT'}
+    for item in bm.verts:
+        to_select = True
+        if x is not None:
+            to_select = to_select and (x[0] <= item.co.x <= x[1])
+        if y is not None:
+            to_select = to_select and (y[0] <= item.co.y <= y[1])
+        if z is not None:
+            to_select = to_select and (z[0] <= item.co.z <= z[1])
+
+        item.select_set(to_select)
+
+    bm.select_mode |= {'VERT'}
+    bm.select_flush_mode()
+
+    bmesh.update_edit_mesh(me)
+
+def crease_base_vertices(shape):
+    select_vertices_from_shape(shape, z=[-1, 1])
+    bpy.ops.transform.edge_crease(value=1, snap=False)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return shape
+
+def subdivide_mesh(shape, level=3):
+    select(shape)
+    bpy.ops.object.modifier_add(type='SUBSURF')
+    bpy.context.object.modifiers["Subdivision"].levels = level
+    bpy.ops.object.modifier_apply(modifier="Subdivision")
+    clear_selection()
+    return shape
+
+def dissolve_non_base(shape):
+    select_vertices_from_shape(shape, x=None, y=None, z=[1, 99999])
+    bpy.ops.mesh.dissolve_limited(angle_limit=.0175)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return shape
 
 if __name__ == '__main__':
 #    bs=[]

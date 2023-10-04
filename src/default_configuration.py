@@ -3,7 +3,7 @@ import getopt
 import os
 import json
 
-packages_path = r"C:\Users\jashr\AppData\Roaming\Python\Python39\site-packages"
+packages_path = r"C:\Users\jashr\AppData\Roaming\Python\Python310\site-packages"
 sys.path.insert(0, packages_path )
 fdir = r'E:\Users\jashreve\git\dactyl-keyboard-JS\src'
 print(os.getcwd())
@@ -36,12 +36,14 @@ OLED_LOOKUP = {
 @dataclass
 class ShapeConfiguration:
     # ENGINE = 'solid'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
-    # ENGINE = 'cadquery'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
-    ENGINE = 'blender'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    ENGINE = 'cadquery'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    #ENGINE = 'blender'  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
     
     ######################
     ## Shape parameters ##
     ######################
+
+    blender_smooth: bool = True
 
     save_dir: str = '.'
     config_name: str = "DM"
@@ -49,8 +51,8 @@ class ShapeConfiguration:
     show_caps: bool = None #'CHOC'
     show_pcbs: bool = False  # only runs if caps are shown, easist place to initially inject geometry
 
-    nrows = 3  # 5,  # key rows
-    ncols = 5  # 6,  # key columns
+    nrows = 5  # 5,  # key rows
+    ncols = 6  # 6,  # key columns
 
     alpha: float = pi / 12.0  # curvature of the columns
     beta: float = pi / 36.0  # curvature of the rows
@@ -73,12 +75,12 @@ class ShapeConfiguration:
     extra_height: float = 1.0  # original= 0.5
 
     web_thickness: float = 4.0 + 1.1
-    post_size: float = 0.5
-    post_adj = post_size / 2
+    post_size: float = .05
+    # post_adj = post_size / 2
     # post_size: float = 0.3
     # post_adj = post_size / 2
 
-    #post_adj: float = 0
+    post_adj: float = 0
 
 
     oled_config: Any = None   #OLED_LOOKUP[oled_mount_type]()
@@ -206,7 +208,8 @@ class ShapeConfiguration:
 
         if self.oled_config is None:
             from oled import oled_clip
-            self.oled_config = oled_clip.OLEDClipParameters()
+            # self.oled_config = oled_clip.OLEDClipParameters()
+            self.oled_config = None
 
         if self.controller_mount_config is None:
             from shapes import controllers
@@ -216,10 +219,14 @@ class ShapeConfiguration:
             from shapes import plates
 #            self.plate_config = plates.NotchPlateParameters(plate_holes=True, plate_pcb_clear=True)
             self.plate_config = plates.NotchPlateParameters(plate_holes=False, plate_pcb_clear=False)
+            # self.plate_config = plates.BlankPlateParameters()
 
 
 if __name__ == '__main__':
-    from dactyl_manuform import *
+    # from dactyl_manuform import *
+    import dactyl_manuform as dm
+#    import importlib
+#    importlib.reload(dm)
 
     import clusters.default as clust_def
     left_cluster = clust_def.DefaultClusterParameters()
@@ -260,11 +267,11 @@ if __name__ == '__main__':
         back_wall_offset=(6, 10, 3),  # specific values for the left side due to the minimal wall.
         right_cluster=right_cluster,
         left_cluster=left_cluster,
-        oled_config=oled,
+        oled_config=None,
         controller_mount_config=ctrl,
     )
 
-    db = DactylBase(config)
+    db = dm.DactylBase(config)
     db.run()
 
     with open('test.json', mode='w') as fid:

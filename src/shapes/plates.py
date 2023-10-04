@@ -169,7 +169,7 @@ class BlankPlateParameters:
     sa_double_length: float = 37.5
 
     plate_rim: float = 2.55
-
+    plate_pcb_clear: bool = False
 
 class BlankPlate:
     g: helpers_abc
@@ -189,6 +189,7 @@ class BlankPlate:
         self.process_parameters()
 
         self._plate = None
+        self._const_plate = None
 
     def process_parameters(self):
         # Process parameters and feed the mount dimensions back
@@ -207,20 +208,41 @@ class BlankPlate:
 
         return plate
 
+    def blank_plate_shape(self):
+        plate = self.g.box(self.p.mount_width, self.p.mount_height, self.p.mount_thickness)
+        plate = self.g.translate(plate, (0.0, 0.0, self.p.mount_thickness / 2.0))
+
+        return plate
+
+    def blank_plate_cutter(self, overcut=3):
+        plate = self.g.box(self.p.mount_width, self.p.mount_height, self.p.mount_thickness*overcut)
+        plate = self.g.translate(plate, (0.0, 0.0, self.p.mount_thickness / 2.0))
+
+        return plate
+
+    def reset_plates(self):
+        self._plate = None
+        self._const_plate = None
+
+    def construction_plate(self, cutter=0):
+        if self._const_plate is None:
+            if cutter > 0:
+                plate = self.blank_plate_cutter(overcut=cutter)
+            else:
+                plate = self.blank_plate_shape()
+
+            self._const_plate = plate
+
+        plate = self.g.duplicate(self._const_plate)
+
+        if self._parent.side == "left" and not self.symmetric:
+            plate = self.g.mirror(plate, 'YZ')
+
+        return plate
+
     def single_plate(self):
         if self._plate is None:
             plate = self.plate_shape()
-
-            if self.pp.plate_holes:
-                plate = self.plate_screw_holes(
-                    plate,
-                    plate_holes_width=self.pp.plate_holes_width, plate_holes_height=self.pp.plate_holes_height,
-                    plate_holes_xy_offset=self.pp.plate_holes_xy_offset,
-                    plate_holes_diameter=self.pp.plate_holes_diameter, plate_holes_depth=self.pp.plate_holes_depth
-                )
-
-            if self.pp.plate_file is not None:
-                plate = self.add_plate_file(plate)
 
             self._plate = plate
 
@@ -239,6 +261,7 @@ class BlankPlate:
     def web_post(self):
         debugprint('web_post()')
         post = self.g.box(self.p.post_size, self.p.post_size, self.p.web_thickness)
+        #post = self.g.sphere(radius=0.5, scale=(self.p.post_size, self.p.post_size, self.p.web_thickness))
         post = self.g.translate(post, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
         return post
 
@@ -288,14 +311,17 @@ class BlankPlate:
         return self.g.translate(self.web_post(),
                                 (-(mount_width / w_divide) + post_adj, -(mount_height / 2) + post_adj, 0))
 
-    def adjustable_square_plate(self, Uwidth=1.5, Uheight=1.5):
+    def adjustable_square_plate(self, Uwidth=1.5, Uheight=1.5, cutter=0):
         width = usize_dimension(Usize=Uwidth)
         height = usize_dimension(Usize=Uheight)
         print("width: {}, height: {}, thickness:{}".format(width, height, self.p.web_thickness))
-        shape = self.g.box(width, height, self.p.web_thickness)
-        shape = self.g.difference(shape, [
-            self.g.box(self.p.mount_width - .01, self.p.mount_height - .01, 2 * self.p.web_thickness)])
-        # shape = self.g.translate(shape, (0, 0, web_thickness / 2))
+        if cutter > 0:
+            shape = self.g.box(width, height, self.p.web_thickness*cutter)
+        else:
+            shape = self.g.box(width, height, self.p.web_thickness)
+            shape = self.g.difference(shape, [
+                self.g.box(self.p.mount_width - .01, self.p.mount_height - .01, 2 * self.p.web_thickness)
+            ])
         shape = self.g.translate(shape, (0, 0, self.pp.plate_thickness - (self.p.web_thickness / 2)))
 
         return shape
@@ -303,34 +329,42 @@ class BlankPlate:
     def adjustable_plate_size(self, Usize=1.5):
         return (Usize * self.pp.sa_length - self.p.mount_height) / 2
 
-    def adjustable_plate_half(self, Usize=1.5):
+    def adjustable_plate_half(self, Usize=1.5, cutter=0):
         debugprint('double_plate()')
         adjustable_plate_height = self.adjustable_plate_size(Usize)
-        top_plate = self.g.box(self.p.mount_width, adjustable_plate_height, self.p.web_thickness)
+        if cutter > 0:
+            top_plate = self.g.box(self.p.mount_width, adjustable_plate_height, self.p.web_thickness*cutter)
+        else:
+            top_plate = self.g.box(self.p.mount_width, adjustable_plate_height, self.p.web_thickness)
         top_plate = self.g.translate(top_plate,
                                      [0, (adjustable_plate_height + self.p.mount_height) / 2,
                                       self.pp.plate_thickness - (self.p.web_thickness / 2)]
                                      )
         return top_plate
 
-    def adjustable_plate(self, Usize=1.5):
+    def adjustable_plate(self, Usize=1.5, cutter=0):
         debugprint('double_plate()')
-        top_plate = self.adjustable_plate_half(Usize)
+        top_plate = self.adjustable_plate_half(Usize, cutter=cutter)
         return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
 
-    def double_plate_half(self):
+    def double_plate_half(self, cutter=0):
         debugprint('double_plate()')
 
-        top_plate = self.g.box(self.p.mount_width, self.pp.double_plate_height, self.p.web_thickness)
+        if cutter > 0:
+            thickness = self.p.web_thickness*cutter
+        else:
+            thickness = self.p.web_thickness
+
+        top_plate = self.g.box(self.p.mount_width, self.pp.double_plate_height, thickness)
         top_plate = self.g.translate(top_plate,
                                      [0, (self.pp.double_plate_height + self.p.mount_height) / 2,
                                       self.pp.plate_thickness - (self.p.web_thickness / 2)]
                                      )
         return top_plate
 
-    def double_plate(self):
+    def double_plate(self, cutter=0):
         debugprint('double_plate()')
-        top_plate = self.double_plate_half()
+        top_plate = self.double_plate_half(cutter=cutter)
         return self.g.union((top_plate, self.g.mirror(top_plate, 'XZ')))
 
 
@@ -398,6 +432,7 @@ class HolePlate(BlankPlate):
         self.process_parameters()
 
         self._plate = None
+        self._const_plate = None
 
     def process_parameters(self):
         # Process parameters and feed the mount dimensions back

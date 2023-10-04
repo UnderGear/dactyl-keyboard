@@ -1,5 +1,6 @@
 import json
 import os
+import os.path as path
 import numpy as np
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass
@@ -162,7 +163,8 @@ class ClusterBase(ABC):
     def thumbcaps(self):
         return self.pl.keycap(1)
 
-    def thumb(self):
+    def thumb(self, blank=False, cutter=0):
+        self.pl.reset_plates()
         return self.pl.single_plate()
 
     def thumb_connectors(self):
@@ -202,9 +204,9 @@ class ClusterBase(ABC):
             offset=-.01
         )
 
-    def generate_thumb(self):
+    def generate_thumb(self, blank=False):
         # thumb_shape = thumb()
-        thumb_shape = self.thumb()
+        thumb_shape = self.thumb(blank=blank)
 
         if self.debug_exports:
              self.g.export_file(shape=thumb_shape, fname=path.join(r"..", "things", r"debug_thumb_shape"))
@@ -213,14 +215,28 @@ class ClusterBase(ABC):
              self.g.export_file(shape=thumb_connector_shape, fname=path.join(r"..", "things", r"debug_thumb_connector_shape"))
 
         thumb_wall_shape = self.walls(skeleton=self.p.skeletal)
-        thumb_wall_shape = self.g.union([thumb_wall_shape, *self.parent.screw_insert_outers(thumb=True)])
+
+        #thumb_wall_shape = self.g.union([thumb_wall_shape, *self.parent.screw_insert_outers(thumb=True)])
+
+        thumb_screw_outers = self.parent.screw_insert_outers(thumb=True)
         thumb_connection_shape = self.connection(skeleton=self.p.skeletal)
 
         if self.debug_exports:
             thumb_test = self.g.union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
-            self.g.export_file(shape=thumb_test, fname=path.join(r"..", "things", r"debug_thumb_test_{}_shape".format(self.side)))
+            self.g.export_file(shape=thumb_test, fname=os.path.join(r"..", "things", r"debug_thumb_test_{}_shape".format(self.side)))
 
         thumb_section = self.g.union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
-        thumb_section = self.g.difference(thumb_section, self.screw_insert_holes())
+        # thumb_section = self.g.difference(thumb_section, self.screw_insert_holes())
+        thumb_screw_holes = self.screw_insert_holes()
 
-        return thumb_section
+        return thumb_section, thumb_screw_outers, thumb_screw_holes
+
+    def generate_smooth_thumb(self, cutter=5):
+        self.pl.reset_plates()
+        thumb_cutter = self.thumb(cutter=cutter)
+        self.pl.reset_plates()
+        thumb_fill = self.thumb()
+        self.pl.reset_plates()
+        thumb_section, thumb_screw_outers, thumb_screw_holes = self.generate_thumb(blank=True)
+
+        return thumb_section, thumb_screw_outers, thumb_screw_holes, thumb_cutter, thumb_fill

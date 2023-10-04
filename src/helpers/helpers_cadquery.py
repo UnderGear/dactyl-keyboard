@@ -2,7 +2,10 @@ import cadquery as cq
 from scipy.spatial import ConvexHull as sphull
 import numpy as np
 
-
+from OCP import StlAPI
+from OCP import TopoDS
+from OCP.TopExp import TopExp_Explorer
+from OCP.TopAbs import TopAbs_FACE
 debug_trace = False
 
 def debugprint(info):
@@ -229,16 +232,53 @@ def import_file(fname, convexity=None):
         cq.exporters.ExportTypes.STEP,
         fname + ".step"))
 
+def import_stl(fname, convexity=None):
+    print("IMPORTING FROM {}".format(fname))
+    shape = TopoDS.TopoDS_Shape()
+    stl_reader = StlAPI.StlAPI_Reader()
+    stl_reader.Read(shape, fname)
+    print(shape)
+    if shape.IsNull():
+        raise AssertionError("Shape is null.")
+
+    topExp = TopExp_Explorer()
+    topExp.Init(shape, TopAbs_FACE)
+    faces = []
+    while topExp.More():
+        faces.append(cq.Face(topExp.Current()))
+        topExp.Next()
+    solid_object = cq.Solid.makeSolid(cq.Shell.makeShell(faces))
+    return cq.Workplane('XY').add(solid_object)
+
+def import_stl2(fname, convexity=None):
+    print("IMPORTING FROM {}".format(fname))
+    from OCP import StlAPI
+    from OCP import TopoDS
+    from OCP import ShapeFix
+
+    ts = TopoDS.TopoDS()
+    shape = TopoDS.TopoDS_Shape()
+    stl_reader = StlAPI.StlAPI_Reader()
+    stl_reader.Read(shape, fname)
+    print(shape)
+    # sf = ShapeFix.ShapeFix_Shape(shape)
+    # sf.Perform()
+    # fixedShape = sf.Shape()
+    # bb = ShapeFix.ShapeFix_Solid()
+    # shape = bb.SolidFromShell(ts.Shell(fixedShape))
+
+    return cq.Workplane('XY').add(shape)
+
 def export_stl(shape, fname):
     print("EXPORTING STL TO {}".format(fname))
-    cq.exporters.export(shape, fname=fname + "_cadquery.stl", exportType="STL")
+    cq.exporters.export(shape, fname=fname + ".stl", exportType="STL")
 
 def export_file(shape, fname):
     print("EXPORTING TO {}".format(fname))
     cq.exporters.export(w=shape, fname=fname + ".step",
                         exportType='STEP')
 
-    export_stl(shape, fname)
+    export_stl(shape, fname + '_cadquery')
 
 
 def export_dxf(shape, fname):
