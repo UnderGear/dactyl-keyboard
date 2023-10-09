@@ -40,6 +40,7 @@ while topExp.More():
     faces.append(cq.Face(topExp.Current()))
     topExp.Next()
 solid_object = cq.Solid.makeSolid(cq.Shell.makeShell(faces))
+solid_object.fix()
 shape = cq.Workplane('XY').add(solid_object)
 
 

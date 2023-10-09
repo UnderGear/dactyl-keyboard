@@ -32,6 +32,7 @@ def select(shape):
 def duplicate(shape):
     clear_selection()
     select(shape)
+    bpy.ops.object.mode_set(mode='OBJECT')
     bpy.ops.object.duplicate()
     shape.select_set(0)
     new_shape = bpy.context.object
@@ -156,88 +157,135 @@ def mirror(shape, plane=None):
     clear_selection()
     return shape
 
-def boolean_cleanup(
+
+def boolean_post_cleanup(
         shape,
         remove_doubles_threshold=0.01,
-        dissolve_limited=.01,
-        vert_connect_concave=True,
-        dissolve_degenerate= 0.15,
+        dissolve_limited=0,
+        dissolve_degenerate=1.0,
         delete_loose=True,
-        collapse_non_manifold=False,
         beautify_faces=False,
-        recalc_normals=True,
+        recalc_normals=False,
+        tris_to_quads=False,
+        z=(-1, 1.5),
 ):
-    debugprint("CLEANING UP: {}".format(shape))
     select(shape)
-
-    bpy.ops.object.editmode_toggle()
-    bpy.ops.mesh.select_all(action='SELECT')
+    select_vertices_from_shape(shape, x=None, y=None, z=z)
     bpy.ops.mesh.fill_holes()
 
     if remove_doubles_threshold is not None:
         bpy.ops.mesh.remove_doubles(threshold=remove_doubles_threshold)
 
-    bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
-
     if (dissolve_limited > 0):
         bpy.ops.mesh.dissolve_limited(angle_limit=dissolve_limited)
 
-    if (vert_connect_concave):
-        bpy.ops.mesh.vert_connect_concave()
     if (dissolve_degenerate > 0):
         bpy.ops.mesh.dissolve_degenerate(threshold=dissolve_degenerate)
 
     if (delete_loose):
         bpy.ops.mesh.delete_loose()
 
-    bpy.ops.mesh.tris_convert_to_quads()
+    if (beautify_faces):
+        bpy.ops.mesh.beautify_fill(angle_limit=3.14159)
 
-    bpy.ops.object.editmode_toggle()
+    if (recalc_normals):
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+
+    if tris_to_quads:
+        bpy.ops.mesh.tris_convert_to_quads()
+
+    return shape
+
+def boolean_cleanup(
+        shape,
+        remove_doubles_threshold=0.01,
+        dissolve_limited=0,
+        vert_connect_concave=False,
+        dissolve_degenerate=1.0,
+        delete_loose=False,
+        collapse_non_manifold=False,
+        beautify_faces=False,
+        recalc_normals=False,
+        quads_to_tris=False,
+        tris_to_quads=False,
+):
+    debugprint("CLEANING UP: {}".format(shape))
+    select(shape)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.fill_holes()
+
+    if remove_doubles_threshold is not None:
+        bpy.ops.mesh.remove_doubles(threshold=remove_doubles_threshold)
+
+    if quads_to_tris:
+        bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
+
+    if (dissolve_limited > 0):
+        bpy.ops.mesh.dissolve_limited(angle_limit=dissolve_limited)
+
+    if (vert_connect_concave):
+        bpy.ops.mesh.vert_connect_concave()
+
+    if (dissolve_degenerate > 0):
+        bpy.ops.mesh.dissolve_degenerate(threshold=dissolve_degenerate)
+
+    if (delete_loose):
+        bpy.ops.mesh.delete_loose()
+
+    if quads_to_tris:
+        bpy.ops.mesh.tris_convert_to_quads()
+
     # if (delete_operands):
     #     D.objects.remove(bool_ob, do_unlink=True)
 
     if (dissolve_limited > 0):
+        bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.modifier_add(type='DECIMATE')
         bpy.context.object.modifiers["Decimate"].decimate_type = 'DISSOLVE'
         bpy.context.object.modifiers["Decimate"].angle_limit = dissolve_limited
         bpy.ops.object.modifier_apply(modifier="Decimate")
 
-    bpy.ops.object.editmode_toggle()
+    bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
 
     if (dissolve_degenerate > 0):
         bpy.ops.mesh.dissolve_degenerate(threshold=dissolve_degenerate)
 
-    bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
+    if quads_to_tris:
+        bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
 
+    if tris_to_quads:
+        bpy.ops.mesh.tris_convert_to_quads()
     bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='VERT')
     bpy.ops.mesh.select_all(action='DESELECT')
 
-    bpy.ops.mesh.select_non_manifold(extend=True, use_wire=True, use_boundary=True, use_multi_face=True,
-                                     use_non_contiguous=False, use_verts=True)
-    bpy.ops.object.editmode_toggle()
+    if collapse_non_manifold:
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_non_manifold(extend=True, use_wire=True, use_boundary=True, use_multi_face=True,
+                                         use_non_contiguous=False, use_verts=True)
 
-    selected_verts = list(filter(lambda v: v.select, shape.data.vertices))
+        selected_verts = list(filter(lambda v: v.select, shape.data.vertices))
 
-    if (len(selected_verts) != 0):
-        print("Non manifold geometry found.")
-        if (collapse_non_manifold):
-            bpy.ops.object.editmode_toggle()
-            bpy.ops.mesh.merge(type='COLLAPSE')
-            bpy.ops.mesh.delete_loose()
-            bpy.ops.object.editmode_toggle()
+        if (len(selected_verts) != 0):
+            print("Non manifold geometry found.")
+            if (collapse_non_manifold):
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.merge(type='COLLAPSE')
+                bpy.ops.mesh.delete_loose()
+                bpy.ops.object.mode_set(mode='OBJECT')
 
     if (beautify_faces):
-        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.beautify_fill(angle_limit=3.14159)
-        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.mode_set(mode='OBJECT')
 
     if (recalc_normals):
-        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.normals_make_consistent(inside=False)
-        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.mode_set(mode='OBJECT')
 
     return shape
 
@@ -494,19 +542,81 @@ def export_dxf(shape, fname):
     pass
 
 
+def select_vertices_from_difference(shape1, shape2):
+    mesh2 = shape2.data
+    if not mesh2.is_editmode:
+        select(shape2)
+        bpy.ops.object.mode_set(mode='EDIT')
+    bmesh2 = bmesh.from_edit_mesh(mesh2)
+    bmesh2.select_mode = {'VERT'}
+    vert_list = []
+    for item in bmesh2.verts:
+        vert_list.append(item.co)
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    mesh1 = shape1.data
+    if not mesh2.is_editmode:
+        select(shape1)
+        bpy.ops.object.mode_set(mode='EDIT')
+    bmesh1 = bmesh.from_edit_mesh(mesh1)
+    bmesh.select_mode = {'VERT'}
+    for item in bmesh2.verts:
+        item.select_set(True)
+        for vert in vert_list:
+            if (item.co-vert).length < .1:
+                item.select_set(False)
+        
+    bmesh.select_mode |= {'VERT'}
+    bmesh1.select_flush_mode()
+
+    bmesh.update_edit_mesh(mesh1)
 
 
+def select_vertices_from_shared(shape1, shape2, tol=1):
+    mesh2 = shape2.data
+    select(shape2)
+    if not mesh2.is_editmode:
+        # bpy.ops.object.mode_set(mode='OBJECT')
+        select(shape2)
+        bpy.ops.object.mode_set(mode='EDIT')
+    bmesh2 = bmesh.from_edit_mesh(mesh2)
+    bmesh2.select_mode = {'VERT'}
+    vert_list = []
+    for item in bmesh2.verts:
+        vert_list.append(item.co)
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bmesh2.select_mode |= {'VERT'}
+    bmesh2.select_flush_mode()
+
+    mesh1 = shape1.data
+    select(shape1)
+    if not mesh1.is_editmode:
+        # bpy.ops.object.mode_set(mode='OBJECT')
+        select(shape1)
+        bpy.ops.object.mode_set(mode='EDIT')
+    bmesh1 = bmesh.from_edit_mesh(mesh1)
+    bmesh1.select_mode = {'VERT'}
+    for item in bmesh1.verts:
+        item.select_set(False)
+        for vert in vert_list:
+            if (item.co == vert) or ((item.co - vert).length < tol):
+                item.select_set(True)
+
+    bmesh1.select_mode |= {'VERT'}
+    bmesh1.select_flush_mode()
+
+    bmesh.update_edit_mesh(mesh1)
 
 
 def select_vertices_from_shape(shape, x=None, y=None, z=None):
-    bpy.ops.object.mode_set(mode='EDIT')
+    # bpy.ops.object.mode_set(mode='EDIT')
     ob = shape
     me = ob.data
     if not me.is_editmode:
         select(ob)
         bpy.ops.object.mode_set(mode='EDIT')
     bm = bmesh.from_edit_mesh(me)
-    bm.select_mode = {'VERT'}
+    # bm.select_mode = {'VERT'}
     for item in bm.verts:
         to_select = True
         if x is not None:
@@ -515,8 +625,8 @@ def select_vertices_from_shape(shape, x=None, y=None, z=None):
             to_select = to_select and (y[0] <= item.co.y <= y[1])
         if z is not None:
             to_select = to_select and (z[0] <= item.co.z <= z[1])
-
-        item.select_set(to_select)
+        if to_select:
+            item.select_set(True)
 
     bm.select_mode |= {'VERT'}
     bm.select_flush_mode()
@@ -524,22 +634,56 @@ def select_vertices_from_shape(shape, x=None, y=None, z=None):
     bmesh.update_edit_mesh(me)
 
 def crease_base_vertices(shape):
-    select_vertices_from_shape(shape, z=[-1, 1])
+    select(shape)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    select_vertices_from_shape(shape, z=[-1, 1.5])
     bpy.ops.transform.edge_crease(value=1, snap=False)
+    bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
     return shape
 
-def subdivide_mesh(shape, level=3):
+def crease_key_vertices(shape, shared_shape, tol):
+    select(shape)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    select_vertices_from_shared(shape1=shape, shape2=shared_shape, tol=tol)
+    bpy.ops.transform.edge_crease(value=1, snap=False)
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return shape
+
+def subdivide_mesh(shape, level=3, simple=False):
     select(shape)
     bpy.ops.object.modifier_add(type='SUBSURF')
+    if simple:
+        bpy.context.object.modifiers["Subdivision"].subdivision_type = 'SIMPLE'
+    else:
+        bpy.context.object.modifiers["Subdivision"].subdivision_type = 'CATMULL_CLARK'
     bpy.context.object.modifiers["Subdivision"].levels = level
     bpy.ops.object.modifier_apply(modifier="Subdivision")
     clear_selection()
     return shape
 
-def dissolve_non_base(shape):
-    select_vertices_from_shape(shape, x=None, y=None, z=[1, 99999])
+def direct_subdivide_mesh(shape, cuts=2):
+    select(shape)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.subdivide(number_cuts=cuts, smoothness=0, ngon=True, quadcorner='INNERVERT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    clear_selection()
+    return shape
+
+def dissolve_for_smooth(shape, shared_shape):
+    select(shape)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    select_vertices_from_shared(shape, shape2=shared_shape)
+    select_vertices_from_shape(shape, x=None, y=None, z=[0, 1])
+    bpy.ops.mesh.select_all(action='INVERT')
     bpy.ops.mesh.dissolve_limited(angle_limit=.0175)
+    bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
     return shape
 
@@ -559,4 +703,32 @@ if __name__ == '__main__':
 
     # item = bpy.data.objects['Cube.002']
     # dat = hull_from_shapes([item])
-    dat = hull_from_points([[1,1,1], [-1,1,1],[-1,-1,1],[-1,-1,-1],[1,-1,1],[1,-1,-1],[1,1,-1],[-1,1,-1]])
+    # dat = hull_from_points([[1,1,1], [-1,1,1],[-1,-1,1],[-1,-1,-1],[1,-1,1],[1,-1,-1],[1,1,-1],[-1,1,-1]])
+    import os.path as path
+    base_dir = r'E:\Users\jashreve\git\dactyl-keyboard-JS'
+
+#    try:
+#        item1 = bpy.data.objects['shape_for_smoothing']
+#    except:
+#        fname = path.join(base_dir, "things", r"shape_for_smoothing.stl")
+#        item1 = import_file(fname)
+#        fname = path.join(base_dir, "things", r"cut_base_for_smoothing_cadquery.stl")
+#        item2 = import_file(fname)
+#        fname = path.join(base_dir, "things", r"plates_for_smoothing.stl")
+#        item3 = import_file(fname)
+
+#    item1 = bpy.data.objects['shape_for_smoothing']
+#    item2 = bpy.data.objects['cut_base_for_smoothing_cadquery']
+#    item3 = bpy.data.objects['plates_for_smoothing']
+
+    shape = bpy.data.objects['shape2_baseline']
+    shape = duplicate(shape)
+
+#    select(shape)
+#    bpy.ops.object.mode_set(mode='EDIT')
+#    bpy.ops.mesh.select_all(action='DESELECT')
+##    bpy.ops.mesh.select_all(action='DESELECT')
+#    select_vertices_from_shared(shape, shared_shape)
+#    select_vertices_from_shape(shape, x=None, y=None, z=[0, 1])
+#    bpy.ops.mesh.select_all(action='INVERT')
+

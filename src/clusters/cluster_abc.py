@@ -163,7 +163,7 @@ class ClusterBase(ABC):
     def thumbcaps(self):
         return self.pl.keycap(1)
 
-    def thumb(self, blank=False, cutter=0):
+    def thumb(self, blank=False, multiplier=0, adder=0):
         self.pl.reset_plates()
         return self.pl.single_plate()
 
@@ -204,9 +204,9 @@ class ClusterBase(ABC):
             offset=-.01
         )
 
-    def generate_thumb(self, blank=False):
+    def generate_thumb(self, blank=False, adder=0):
         # thumb_shape = thumb()
-        thumb_shape = self.thumb(blank=blank)
+        thumb_shape = self.thumb(blank=blank, adder=adder)
 
         if self.debug_exports:
              self.g.export_file(shape=thumb_shape, fname=path.join(r"..", "things", r"debug_thumb_shape"))
@@ -231,12 +231,14 @@ class ClusterBase(ABC):
 
         return thumb_section, thumb_screw_outers, thumb_screw_holes
 
-    def generate_smooth_thumb(self, cutter=5):
+    def generate_smooth_thumb(self, cut_multiplier=5, plate_adder=0):
         self.pl.reset_plates()
-        thumb_cutter = self.thumb(cutter=cutter)
+        thumb_cutter = self.thumb(blank=True, multiplier=cut_multiplier)
         self.pl.reset_plates()
         thumb_fill = self.thumb()
         self.pl.reset_plates()
-        thumb_section, thumb_screw_outers, thumb_screw_holes = self.generate_thumb(blank=True)
+        thumb_plates = self.thumb(blank=True, adder=plate_adder)
+        self.pl.reset_plates()
+        thumb_section, thumb_screw_outers, thumb_screw_holes = self.generate_thumb(blank=True, adder=plate_adder)
 
-        return thumb_section, thumb_screw_outers, thumb_screw_holes, thumb_cutter, thumb_fill
+        return thumb_section, thumb_screw_outers, thumb_screw_holes, thumb_cutter, thumb_fill, thumb_plates

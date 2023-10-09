@@ -248,6 +248,7 @@ def import_stl(fname, convexity=None):
         faces.append(cq.Face(topExp.Current()))
         topExp.Next()
     solid_object = cq.Solid.makeSolid(cq.Shell.makeShell(faces))
+    solid_object = solid_object.fix()
     return cq.Workplane('XY').add(solid_object)
 
 def import_stl2(fname, convexity=None):

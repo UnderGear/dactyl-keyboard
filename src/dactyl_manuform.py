@@ -3,6 +3,7 @@ from numpy import pi
 import os.path as path
 import os
 import copy
+import json
 import importlib
 from helpers import helpers_abc, freecad_that as freecad
 
@@ -262,7 +263,7 @@ class DactylBase:
     ):
         if column_style is None:
             column_style = self.p.column_style
-        debugprint('apply_key_geometry()')
+        # debugprint('apply_key_geometry()')
 
         column_angle = self.p.beta * (self.p.centercol - column)
 
@@ -321,7 +322,7 @@ class DactylBase:
         return self.g.rotate(shape, [0, rad2deg(angle), 0])
 
     def key_place(self, shape, column, row):
-        debugprint('key_place()')
+        # debugprint('key_place()')
         return self.apply_key_geometry(shape, self.g.translate, self.x_rot, self.y_rot, column, row)
 
     def add_translate(self, shape, xyz):
@@ -348,17 +349,15 @@ class DactylBase:
             position, self.add_translate, self.rotate_around_x, self.rotate_around_y, column, row
         )
 
-    def key_holes(self, blank=False, cutter=0):
+    def key_holes(self, blank=False, multiplier=1, adder=0):
         self.pl.reset_plates()
-        debugprint('key_holes(blank={}, cutter={})'.format(blank, cutter))
+        debugprint('key_holes(blank={}, cutter={})'.format(blank, multiplier))
         holes = []
         for column in range(self.p.ncols):
             for row in range(self.p.nrows):
                 if self.valid_key(column, row):
                     if blank:
-                        holes.append(self.key_place(self.pl.construction_plate(), column, row))
-                    elif cutter > 0:
-                        holes.append(self.key_place(self.pl.construction_plate(cutter=cutter), column, row))
+                        holes.append(self.key_place(self.pl.construction_plate(multiplier=multiplier, adder=adder), column, row))
                     else:
                         holes.append(self.key_place(self.pl.single_plate(), column, row))
 
@@ -930,10 +929,12 @@ class DactylBase:
 
     def model_side(self):
         print('model_right()')
+        cut_mult = self.p.blender_cut_mult
+        plate_adder = self.p.blender_plate_add
 
         # shape = self.g.union([self.key_holes()])
         if self.p.blender_smooth:
-            plates = self.key_holes(blank=True)
+            plates = self.key_holes(blank=True, adder=plate_adder)
         else:
             plates = self.key_holes()
 
@@ -956,39 +957,167 @@ class DactylBase:
         shape = self.g.union([shape, s2])
 
         if self.p.blender_smooth:
-            thumb_section, thumb_screw_outers, thumb_screw_holes, thumb_cutter, thumb_fill = self.cluster.generate_smooth_thumb()
+
+
+            (thumb_section, thumb_screw_outers, thumb_screw_holes, thumb_cutter, thumb_fill,
+             thumb_plates) = self.cluster.generate_smooth_thumb(cut_multiplier=cut_mult, plate_adder=plate_adder)
             shape = self.g.union([shape, thumb_section])
             block = self.g.box(500, 500, 40)
             block = self.g.translate(block, (0, 0, -20))
             shape = self.g.difference(shape, [block])
             f_to_smooth = path.abspath(path.join(r"..", "things", r"shape_for_smoothing"))
             self.g.export_stl(shape=shape, fname=f_to_smooth)
-            import helpers.helpers_blender as bdr
-            bdr_shape = bdr.import_file(fname=f_to_smooth + ".stl")
-            bdr_shape = bdr.boolean_cleanup(bdr_shape, dissolve_degenerate=2.0)
-            bdr_shape = bdr.crease_base_vertices(bdr_shape)
-            bdr_shape = bdr.dissolve_non_base(bdr_shape)
-            bdr_shape = bdr.subdivide_mesh(bdr_shape, level=self.p.blender_smooth)
+
+            pl_to_smooth = path.abspath(path.join(r"..", "things", r"plates_for_smoothing"))
+            self.g.export_stl(shape=self.g.union([*plates, thumb_plates]),
+                               fname=pl_to_smooth)
+
+            # cutter_plates = self.key_holes(blank=True, multiplier=3.0)
+
+            # shape = self.g.difference(shape, cutter_plates)
+            # shape = self.g.difference(shape, [thumb_cutter])
+            # self.g.export_file(shape=self.g.union([shape]),
+            #                    fname=path.join(r"..", "things", r"cut_base_for_smoothing"))
+
+
+            blender_info = dict(
+                f_to_smooth=f_to_smooth,
+                pl_to_smooth=pl_to_smooth,
+                blender_presmooth=self.p.blender_presmooth,
+                blender_presubdivide=self.p.blender_presubdivide,
+                blender_smooth=self.p.blender_smooth,
+                blender_controlled_smooth=self.p.blender_controlled_smooth,
+                current_dir=os.path.abspath(r"."),
+                blender_dir=self.p.blender_dir,
+                blender_packages_path=self.p.blender_packages_path,
+            )
+
+            import subprocess
+
+            run_file = ""
+            run_file += "import os\n"
+            run_file += "import sys\n"
+            run_file += "run_dir = r'{}'\n".format(os.path.abspath(r'.'))
+            run_file += open('blender_processing.py').read()
+
+            with open('blender_config.json', mode='w') as fid:
+                json.dump(blender_info, fid)
+            with open('blender_run.py', mode='w') as fid:
+                fid.write(run_file)
+
+            bpath = os.path.abspath(os.path.join(self.p.blender_dir, 'blender.exe'))
+            pfpath = os.path.abspath(os.path.join('.', r'blender_run.py'))
+            output = subprocess.check_output(
+                r'"{bpath}" -b --factory-startup --python "{pfpath}"'.format(bpath=bpath, pfpath=pfpath),
+                shell=True
+            )
+            print(output)
+            if 'PROCESSING COMPLETE' in str(output):
+                print('==========================================')
+                print('BLENDER PROCESSING COMPLETED SUCCESSFULLY')
+                print('==========================================')
+
+            # import helpers.helpers_blender as bdr
+            # import bpy
+            # bdr_shape = bdr.import_file(fname=f_to_smooth + ".stl")
+            # shared_shape = bdr.import_file(fname=pl_to_smooth + ".stl")
+            #
+            # bdr_shape2 = bdr.duplicate(bdr_shape)
+            # bdr_shape2.name = "shape2_baseline"
+            # bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+            # bdr_shape = bdr.boolean_cleanup(
+            #     bdr_shape,
+            #     dissolve_degenerate=2.0,
+            #     dissolve_limited=0,
+            # )
+            # bdr_shape = bdr.dissolve_for_smooth(bdr_shape, shared_shape)
+            # if self.p.blender_presmooth:
+            #     bdr_shape = bdr.subdivide_mesh(bdr_shape, level=self.p.blender_presmooth, simple=True)
+            #
+            # if self.p.blender_presubdivide:
+            #     bdr_shape = bdr.direct_subdivide_mesh(bdr_shape, cuts=self.p.blender_presubdivide)
+            #
+            #
+            #
+            # bdr_shape = bdr.crease_base_vertices(bdr_shape)
+            # bdr_shape3 = bdr.duplicate(bdr_shape)
+            # bdr_shape3.name = "shape3_post_base_crease"
+            # if self.p.blender_controlled_smooth:
+            #     bdr_shape = bdr.crease_key_vertices(bdr_shape, shared_shape, tol=self.p.blender_controlled_smooth)
+            #     bdr_shape4 = bdr.duplicate(bdr_shape)
+            #     bdr_shape4.name = "shape4_post_key_crease"
+            # bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+            # bdr_shape = bdr.subdivide_mesh(bdr_shape, level=self.p.blender_smooth)
+            # bdr_shape5 = bdr.duplicate(bdr_shape)
+            # bdr_shape5.name = "shape5_post_smooth"
+            # bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+            #
+            #
+            # bdr_shape = bdr.boolean_post_cleanup(
+            #         bdr_shape,
+            #         remove_doubles_threshold=0.01,
+            #         dissolve_limited=0.01,
+            #         dissolve_degenerate=0.5,
+            #         delete_loose=True,
+            #         beautify_faces=False,
+            #         recalc_normals=True,
+            #         tris_to_quads=False,
+            #         z=[-1, 1.5],
+            # )
+            #
+            # # bdr_shape = bdr.boolean_cleanup(
+            # #     bdr_shape,
+            # #     dissolve_degenerate=.2,
+            # #     dissolve_limited=0,
+            # #     remove_doubles_threshold=0.001,
+            # #     vert_connect_concave=False,
+            # #     delete_loose=True,
+            # #     collapse_non_manifold=False,
+            # #     beautify_faces=False,
+            # #     recalc_normals=False,
+            # #     quads_to_tris=False,
+            # #     tris_to_quads=True,
+            # # )
+            #
+            # bdr_shape6 = bdr.duplicate(bdr_shape)
+            # bdr_shape6.name = "shape6_post_cleanup"
+            #
+            #
+            # # raise Exception("END!")
+            #
+            # f_smoothed = path.join(r"..", "things", r"smoothed.stl")
+            # bdr.export_file(bdr_shape, fname=f_smoothed)
 
             f_smoothed = path.join(r"..", "things", r"smoothed.stl")
-            bdr.export_file(bdr_shape, fname=f_smoothed)
             shape = self.g.import_stl(f_smoothed)
-            cutter_plates = self.key_holes(cutter=5.0)
-            # self.g.export_file(shape=self.g.union([*cutter_plates]),
-            #                    fname=path.join(r"..", "things", r"debug_cutter_plates"))
+            self.g.export_file(shape=shape,
+                               fname=path.join(r"..", "things", r"debug_cq_import"))
+            cutter_plates = self.key_holes(blank=True, multiplier=cut_mult)
+            self.g.export_file(shape=self.g.union([*cutter_plates, thumb_cutter]),
+                               fname=path.join(r"..", "things", r"debug_cutter_plates"))
             shape = self.g.difference(shape, cutter_plates)
+            for obj in shape.vals():
+                obj.fix()
+            self.g.export_file(shape=shape,
+                               fname=path.join(r"..", "things", r"debug_cut_plates"))
             shape = self.g.difference(shape, [thumb_cutter])
-            self.g.export_file(shape=self.g.union([shape]),
-                               fname=path.join(r"..", "things", r"debug_cutter_base"))
+            for obj in shape.vals():
+                obj.fix()
+            self.g.export_file(shape=shape,
+                               fname=path.join(r"..", "things", r"debug_cut_base"))
             fill_plates = self.key_holes()
             shape = self.g.union([shape, *fill_plates, thumb_fill])
-            # self.g.export_file(shape=self.g.union([*fill_plates]),
-            #                    fname=path.join(r"..", "things", r"debug_fill_plates"))
+            for obj in shape.vals():
+                obj.fix()
+            self.g.export_file(shape=self.g.union([*fill_plates]),
+                               fname=path.join(r"..", "things", r"debug_fill_plates"))
             thumb_section = shape
-            # self.g.export_file(shape=shape,
-            #                    fname=path.join(r"..", "things", r"debug_smooth"))
+            self.g.export_file(shape=shape,
+                               fname=path.join(r"..", "things", r"debug_smoothed"))
 
         shape = self.g.union([shape, *self.screw_insert_outers(), *thumb_screw_outers])
+        for obj in shape.vals():
+            obj.fix()
 
         if self.ctrl is not None:
             shape = self.ctrl.generate_controller_mount(shape)

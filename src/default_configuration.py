@@ -3,13 +3,13 @@ import getopt
 import os
 import json
 
-packages_path = r"C:\Users\jashr\AppData\Roaming\Python\Python310\site-packages"
-sys.path.insert(0, packages_path )
-fdir = r'E:\Users\jashreve\git\dactyl-keyboard-JS\src'
-print(os.getcwd())
-os.chdir(fdir)
-sys.path.append(fdir)
-print(os.getcwd())
+# packages_path = r"C:\Users\jashr\AppData\Roaming\Python\Python310\site-packages"
+# sys.path.insert(0, packages_path )
+# fdir = r'E:\Users\jashreve\git\dactyl-keyboard-JS\src'
+# print(os.getcwd())
+# os.chdir(fdir)
+# sys.path.append(fdir)
+# print(os.getcwd())
 
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass
@@ -43,7 +43,14 @@ class ShapeConfiguration:
     ## Shape parameters ##
     ######################
 
-    blender_smooth: int = 3
+    blender_dir: str = r"C:\Program Files\Blender Foundation\Blender 3.6"
+    blender_packages_path: str = r"C:\Users\jashr\AppData\Roaming\Python\Python310\site-packages"
+    blender_smooth: int = 1
+    blender_plate_add: float = 0.01
+    blender_cut_mult: float = 5
+    blender_presmooth: int = 0
+    blender_presubdivide: int = 2
+    blender_controlled_smooth: float = 0
 
     save_dir: str = '.'
     config_name: str = "DM"
@@ -51,8 +58,8 @@ class ShapeConfiguration:
     show_caps: bool = None #'CHOC'
     show_pcbs: bool = False  # only runs if caps are shown, easist place to initially inject geometry
 
-    nrows = 5  # 5,  # key rows
-    ncols = 6  # 6,  # key columns
+    nrows = 3  # 5,  # key rows
+    ncols = 5  # 6,  # key columns
 
     alpha: float = pi / 12.0  # curvature of the columns
     beta: float = pi / 36.0  # curvature of the rows
@@ -71,8 +78,10 @@ class ShapeConfiguration:
 
     keyboard_z_offset: float = (11)  # controls overall height# original=9 with centercol=3# use 16 for centercol=2
 
-    extra_width: float = 2.0  # extra space between the base of keys# original= 2
-    extra_height: float = 1.0  # original= 0.5
+    # extra_width: float = 2.0  # extra space between the base of keys# original= 2
+    # extra_height: float = 1.0  # original= 0.5
+    extra_width: float = 3.0  # extra space between the base of keys# original= 2
+    extra_height: float = 2.0  # original= 0.5
 
     web_thickness: float = 4.0 + 1.1
     post_size: float = .05
@@ -198,18 +207,18 @@ class ShapeConfiguration:
     ## END CONFIGURATION SECTION
     ####################################
     def __post_init__(self):
-        if self.left_cluster is None:
-            import clusters.default as clust
-            self.left_cluster = clust.DefaultClusterParameters()
+        # if self.left_cluster is None:
+        #     import clusters.default as clust
+        #     self.left_cluster = clust.DefaultClusterParameters()
+        #
+        # if self.right_cluster is None:
+        #     import clusters.default as clust
+        #     self.right_cluster = clust.DefaultClusterParameters()
 
-        if self.right_cluster is None:
-            import clusters.default as clust
-            self.right_cluster = clust.DefaultClusterParameters()
-
-        if self.oled_config is None:
-            from oled import oled_clip
-            # self.oled_config = oled_clip.OLEDClipParameters()
-            self.oled_config = None
+        # if self.oled_config is None:
+        #     from oled import oled_clip
+        #     # self.oled_config = oled_clip.OLEDClipParameters()
+        #     self.oled_config = None
 
         if self.controller_mount_config is None:
             from shapes import controllers
@@ -217,7 +226,6 @@ class ShapeConfiguration:
 
         if self.plate_config is None:
             from shapes import plates
-#            self.plate_config = plates.NotchPlateParameters(plate_holes=True, plate_pcb_clear=True)
             self.plate_config = plates.NotchPlateParameters(plate_holes=False, plate_pcb_clear=False)
             # self.plate_config = plates.BlankPlateParameters()
 
@@ -233,6 +241,12 @@ if __name__ == '__main__':
     # right_cluster = clust_def.DefaultClusterParameters()
     right_cluster = None
 
+    from shapes import plates
+    plate_config = plates.NotchPlateParameters(
+        plate_holes=False, plate_pcb_clear=False,
+        keyswitch_height=14.0 - 2.0,
+        keyswitch_width=14.0 - 2.0,
+    )
     # import clusters.mini as clust_min
     # right_cluster = clust_min.MiniClusterParameters()
 
@@ -269,6 +283,7 @@ if __name__ == '__main__':
         left_cluster=left_cluster,
         oled_config=None,
         controller_mount_config=ctrl,
+        plate_config=plate_config,
     )
 
     db = dm.DactylBase(config)
