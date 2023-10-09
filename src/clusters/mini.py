@@ -101,10 +101,14 @@ class MiniCluster(ca.ClusterBase):
         t15 = self.thumb_15x_layout(self.g.rotate(self.pl.keycap(1), [0, 0, rad2deg(pi / 2)]))
         return t1.add(t15)
 
-    def thumb(self):
+    def thumb(self, blank=False, multiplier=1, adder=0):
         print('thumb()')
-        shape = self.thumb_1x_layout(self.pl.single_plate())
-        shape = self.g.union([shape, self.thumb_15x_layout(self.pl.single_plate())])
+        if blank:
+            shape = self.thumb_1x_layout(self.pl.construction_plate(multiplier=multiplier, adder=adder))
+            shape = self.g.union([shape, self.thumb_15x_layout(self.pl.construction_plate(multiplier=multiplier, adder=adder))])
+        else:
+            shape = self.thumb_1x_layout(self.pl.single_plate())
+            shape = self.g.union([shape, self.thumb_15x_layout(self.pl.single_plate())])
 
         return shape
 

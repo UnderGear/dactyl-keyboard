@@ -72,10 +72,14 @@ class MinidoxCluster(ca.ClusterBase):
         t1 = self.thumb_1x_layout(self.pl.keycap(1))
         return t1
 
-    def thumb(self):
+    def thumb(self, blank=False, multiplier=1, adder=0):
         print('thumb()')
-        shape = self.thumb_fx_layout(self.g.rotate(self.pl.single_plate(), [0.0, 0.0, -90]))
-        shape = self.g.union([shape, self.thumb_fx_layout(self.pl.adjustable_plate(self.tp.minidox_Usize))])
+        if blank:
+            shape = self.thumb_fx_layout(self.g.rotate(self.pl.construction_plate(multiplier=multiplier, adder=adder), [0.0, 0.0, -90]))
+            shape = self.g.union([shape, self.thumb_fx_layout(self.pl.adjustable_plate(self.tp.minidox_Usize, multiplier=multiplier, adder=adder))])
+        else:
+            shape = self.thumb_fx_layout(self.g.rotate(self.pl.single_plate(), [0.0, 0.0, -90]))
+            shape = self.g.union([shape, self.thumb_fx_layout(self.pl.adjustable_plate(self.tp.minidox_Usize))])
 
         return shape
 

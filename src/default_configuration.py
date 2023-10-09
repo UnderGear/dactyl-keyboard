@@ -13,7 +13,7 @@ import json
 
 from dataclasses_json import dataclass_json
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any, Sequence, Optional
 
 
 pi = 3.14159
@@ -43,14 +43,34 @@ class ShapeConfiguration:
     ## Shape parameters ##
     ######################
 
+    # Blender directory
     blender_dir: str = r"C:\Program Files\Blender Foundation\Blender 3.6"
-    blender_packages_path: str = r"C:\Users\jashr\AppData\Roaming\Python\Python310\site-packages"
+
+    # Number of splits when applying the smoothing.
     blender_smooth: int = 1
+
+    # Plate added height for blank plates used to smooth.
+    # Needs some difference to keep mesh for plates to minimize plate distortion.
+    # Larger differences could have interesting impacts on the smoothed form.
     blender_plate_add: float = 0.01
+
+    # Height multiplier for clearing smoothed design for key plates.
+    # Smoothing varies the height and thickness so it needs extra height to clear all geometry for plates.
     blender_cut_mult: float = 5
-    blender_presmooth: int = 0
-    blender_presubdivide: int = 2
+
+    # Number of splits presmoothing to keep geometric form.  Uses modifiers.
+    blender_presmooth: int = 1
+
+    # Number of splits presmoothing to keep geometric form.  Uses direct mesh dividing.
+    blender_presubdivide: int = 0
+
+    # Whether to attempt to crease the key plates so they don't locally smooth.
+    # Maintains geometry better, but tends to corrupt the mesh.
     blender_controlled_smooth: float = 0
+
+    # File to import if you want to manually mess with the smoothed geometry.
+    blender_import_base: Optional[str] = None
+
 
     save_dir: str = '.'
     config_name: str = "DM"
@@ -84,7 +104,7 @@ class ShapeConfiguration:
     extra_height: float = 2.0  # original= 0.5
 
     web_thickness: float = 4.0 + 1.1
-    post_size: float = .05
+    post_size: float = .1
     # post_adj = post_size / 2
     # post_size: float = 0.3
     # post_adj = post_size / 2
@@ -236,8 +256,16 @@ if __name__ == '__main__':
 #    import importlib
 #    importlib.reload(dm)
 
-    import clusters.default as clust_def
-    left_cluster = clust_def.DefaultClusterParameters()
+    # import clusters.default as clust_def
+    # left_cluster = clust_def.DefaultClusterParameters()
+    # # right_cluster = clust_def.DefaultClusterParameters()
+    # right_cluster = None
+
+    import clusters.minidox as clust_minidox
+    import clusters.mini as clust_mini
+
+    # left_cluster = clust_minidox.MinidoxClusterParameters()
+    left_cluster = clust_mini.MiniClusterParameters()
     # right_cluster = clust_def.DefaultClusterParameters()
     right_cluster = None
 

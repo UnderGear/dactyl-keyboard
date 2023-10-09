@@ -5,6 +5,8 @@ run_dir = r'E:\Users\jashreve\git\dactyl-keyboard-JS\src'
 import os
 import sys
 import json
+import helpers.helpers_blender as bdr
+
 
 # run_dir comes from the file generator that pulls this file.
 # This approach is used to simplify execution in Blender by generating the file to execute base on run location.
@@ -13,7 +15,6 @@ with open(config_fpath, mode='r') as fid:
     config = json.load(fid)
 os.remove(config_fpath)
 
-import bpy
 
 f_to_smooth = config['f_to_smooth']
 pl_to_smooth = config['pl_to_smooth']
@@ -22,22 +23,15 @@ blender_presubdivide = config['blender_presubdivide']
 blender_smooth = config['blender_smooth']
 blender_controlled_smooth = config['blender_controlled_smooth']
 blender_dir = config['blender_dir']
-blender_packages_path = config['blender_packages_path']
+# blender_packages_path = config['blender_packages_path']
 current_dir = config['current_dir']
 
-#packages_path = r"C:\Users\jashr\AppData\Roaming\Python\Python310\site-packages"
-sys.path.insert(0, blender_packages_path )
+# sys.path.insert(0, blender_packages_path )
 sys.path.append(current_dir)
 print(os.getcwd())
 os.chdir(current_dir)
 print(os.getcwd())
 
-
-try:
-    import helpers.helpers_blender as bdr
-except:
-    import blender_installs
-    import helpers.helpers_blender as bdr
 
 
 bdr_shape = bdr.import_file(fname=f_to_smooth + ".stl")
@@ -47,7 +41,7 @@ bdr_shape2 = bdr.duplicate(bdr_shape)
 bdr_shape2.name = "shape2_baseline"
 bdr_shape = bdr.boolean_cleanup(
     bdr_shape,
-    dissolve_degenerate=2.0,
+    dissolve_degenerate=1.0,
     dissolve_limited=0,
 )
 bdr_shape = bdr.dissolve_for_smooth(bdr_shape, shared_shape)
@@ -57,7 +51,7 @@ if blender_presmooth:
 if blender_presubdivide:
     bdr_shape = bdr.direct_subdivide_mesh(bdr_shape, cuts=blender_presubdivide)
 
-bdr_shape = bdr.crease_base_vertices(bdr_shape)
+bdr_shape = bdr.crease_base_vertices(bdr_shape, z=(-1, 2.0))
 bdr_shape3 = bdr.duplicate(bdr_shape)
 bdr_shape3.name = "shape3_post_base_crease"
 if blender_controlled_smooth:

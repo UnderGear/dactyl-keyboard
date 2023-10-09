@@ -1,12 +1,8 @@
 import bpy
 import bmesh
 import random
-import os
-import sys
-import time
-import mathutils
 from math import pi, radians, sin, cos
-from contextlib import contextmanager
+# from contextlib import contextmanager
 
 debug_trace = True
 
@@ -167,11 +163,14 @@ def boolean_post_cleanup(
         beautify_faces=False,
         recalc_normals=False,
         tris_to_quads=False,
-        z=(-1, 1.5),
+        z=(1.5, 999),
 ):
     select(shape)
-    select_vertices_from_shape(shape, x=None, y=None, z=z)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.fill_holes()
+    bpy.ops.mesh.select_all(action='DESELECT')
+    select_vertices_from_shape(shape, x=None, y=None, z=z)
 
     if remove_doubles_threshold is not None:
         bpy.ops.mesh.remove_doubles(threshold=remove_doubles_threshold)
@@ -633,11 +632,11 @@ def select_vertices_from_shape(shape, x=None, y=None, z=None):
 
     bmesh.update_edit_mesh(me)
 
-def crease_base_vertices(shape):
+def crease_base_vertices(shape, z=(-1, 2.0)):
     select(shape)
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='DESELECT')
-    select_vertices_from_shape(shape, z=[-1, 1.5])
+    select_vertices_from_shape(shape, z=z)
     bpy.ops.transform.edge_crease(value=1, snap=False)
     bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode='OBJECT')
