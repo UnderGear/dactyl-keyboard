@@ -173,10 +173,19 @@ def column_offset(column: int) -> list:
 
 # column_style='fixed'
 
+def construction_plate(multiplier=1, adder=0):
+    plate = box(mount_width, mount_height, mount_thickness * multiplier + adder)
+    plate = translate(plate, (0.0, 0.0, mount_thickness / 2.0))
 
-def single_plate(cylinder_segments=100, side="right"):
+    return plate
 
-    if plate_style in ['NUB', 'HS_NUB']:
+def single_plate(cylinder_segments=100, side="right", plate_override=None):
+    if plate_override is not None:
+        plate_applied = plate_override
+    else:
+        plate_applied = plate_style
+
+    if plate_applied in ['NUB', 'HS_NUB']:
         tb_border = (mount_height-keyswitch_height)/2
         top_wall = box(mount_width, tb_border, plate_thickness)
         top_wall = translate(top_wall, (0, (tb_border / 2) + (keyswitch_height / 2), plate_thickness / 2))
@@ -211,15 +220,15 @@ def single_plate(cylinder_segments=100, side="right"):
 
         plate = difference(plate, [shape_cut])
 
-    if plate_style in ['UNDERCUT', 'HS_UNDERCUT', 'NOTCH', 'HS_NOTCH']:
-        if plate_style in ['UNDERCUT', 'HS_UNDERCUT']:
+    if plate_applied in ['UNDERCUT', 'HS_UNDERCUT', 'NOTCH', 'HS_NOTCH']:
+        if plate_applied in ['UNDERCUT', 'HS_UNDERCUT']:
             undercut = box(
                 keyswitch_width + 2 * clip_undercut,
                 keyswitch_height + 2 * clip_undercut,
                 mount_thickness
             )
 
-        if plate_style in ['NOTCH', 'HS_NOTCH']:
+        if plate_applied in ['NOTCH', 'HS_NOTCH']:
             undercut = box(
                 notch_width,
                 keyswitch_height + 2 * clip_undercut,
@@ -336,7 +345,8 @@ def keycap(*args, **kwargs):
     elif show_caps == 'MX':
         return sa_cap(*args, **kwargs)
     else:
-        return sa_cap(*args, **kwargs)
+        # return sa_cap(*args, **kwargs)
+        return None
 
 def sa_cap(Usize=1):
     # MODIFIED TO NOT HAVE THE ROTATION.  NEEDS ROTATION DURING ASSEMBLY
@@ -478,6 +488,12 @@ def apply_key_geometry(
 
     column_angle = beta * (centercol - column)
 
+    col_row = "{}{}".format(column, row)
+    if str(column) in key_adjustments:
+        if str(row) in key_adjustments[str(column)]:
+            shape = rotate_x_fn(shape, key_adjustments[str(column)][str(row)][1][0])
+            shape = rotate_y_fn(shape, key_adjustments[str(column)][str(row)][1][1])
+
     if column_style == "orthographic":
         column_z_delta = column_radius * (1 - np.cos(column_angle))
         shape = translate_fn(shape, [0, 0, -row_radius])
@@ -506,6 +522,13 @@ def apply_key_geometry(
         shape = rotate_y_fn(shape, column_angle)
         shape = translate_fn(shape, [0, 0, column_radius])
         shape = translate_fn(shape, column_offset(column))
+
+    col_row = "{}{}".format(column,row)
+    if str(column) in key_adjustments:
+        if str(row) in key_adjustments[str(column)]:
+            shape = translate_fn(shape, key_adjustments[str(column)][str(row)][0])
+
+
 
     shape = rotate_y_fn(shape, tenting_angle)
     shape = translate_fn(shape, [0, 0, keyboard_z_offset])
@@ -543,14 +566,19 @@ def key_position(position, column, row):
     )
 
 
-def key_holes(side="right"):
+def key_holes(side="right", blank=False, multiplier=1, adder=0):
     debugprint('key_holes()')
     # hole = single_plate()
     holes = []
     for column in range(ncols):
         for row in range(nrows):
             if (reduced_inner_cols <= column < (ncols - reduced_outer_cols)) or (not row == lastrow):
-                holes.append(key_place(single_plate(side=side), column, row))
+                if blank:
+                    holes.append(key_place(construction_plate(
+                        multiplier=multiplier, adder=adder
+                    ), column, row))
+                else:
+                    holes.append(key_place(single_plate(side=side), column, row))
 
     shape = union(holes)
 
@@ -834,40 +862,43 @@ def usize_dimention(Usize=1.5):
     return Usize * sa_length
 
 
-def adjustable_plate_half(Usize=1.5):
+def adjustable_plate_half(Usize=1.5, multiplier=1, adder=0):
     debugprint('double_plate()')
+    thickness = web_thickness * multiplier + adder
     adjustable_plate_height = adjustable_plate_size(Usize)
-    top_plate = box(mount_width, adjustable_plate_height, web_thickness)
+    top_plate = box(mount_width, adjustable_plate_height, thickness)
     top_plate = translate(top_plate,
                           [0, (adjustable_plate_height + mount_height) / 2, plate_thickness - (web_thickness / 2)]
                           )
     return top_plate
 
-def adjustable_plate(Usize=1.5):
+def adjustable_plate(Usize=1.5, multiplier=1, adder=0):
     debugprint('double_plate()')
-    top_plate = adjustable_plate_half(Usize)
+    top_plate = adjustable_plate_half(Usize, multiplier=multiplier, adder=adder)
     return union((top_plate, mirror(top_plate, 'XZ')))
 
-def adjustable_square_plate(Uwidth=1.5, Uheight=1.5):
+def adjustable_square_plate(Uwidth=1.5, Uheight=1.5, multiplier=1, adder=0):
     width = usize_dimention(Usize=Uwidth)
     height = usize_dimention(Usize=Uheight)
-    print("width: {}, height: {}, thickness:{}".format(width, height, web_thickness))
-    shape = box(width, height, web_thickness)
-    shape = difference(shape, [box(mount_width-.01, mount_height-.01, 2*web_thickness)])
+    thickness = web_thickness * multiplier + adder
+    print("width: {}, height: {}, thickness:{}".format(width, height, thickness))
+    shape = box(width, height, thickness)
+    shape = difference(shape, [box(mount_width-.01, mount_height-.01, 2*thickness)])
     shape = translate(shape, (0, 0, web_thickness/2))
     return shape
 
-def double_plate_half():
+def double_plate_half(multiplier=1, adder=0):
     debugprint('double_plate()')
-    top_plate = box(mount_width, double_plate_height, web_thickness)
+    thickness = web_thickness * multiplier + adder
+    top_plate = box(mount_width, double_plate_height, thickness)
     top_plate = translate(top_plate,
                           [0, (double_plate_height + mount_height) / 2, plate_thickness - (web_thickness / 2)]
                           )
     return top_plate
 
-def double_plate():
+def double_plate(multiplier=1, adder=0):
     debugprint('double_plate()')
-    top_plate = double_plate_half()
+    top_plate = double_plate_half(multiplier=multiplier, adder=adder)
     return union((top_plate, mirror(top_plate, 'XZ')))
 
 
@@ -897,30 +928,30 @@ def thumbcaps(side='right', style_override=None):
         return default_thumbcaps()
 
 
-def thumb(side="right", style_override=None):
+def thumb(side="right", blank=False, style_override=None, multiplier=1, adder=0):
     if style_override is None:
         _thumb_style = thumb_style
     else:
         _thumb_style = style_override
 
     if _thumb_style == "MINI":
-        return mini_thumb(side)
+        return mini_thumb(side, blank=blank, multiplier=multiplier, adder=adder)
     elif _thumb_style == "MINIDOX":
-        return minidox_thumb(side)
+        return minidox_thumb(side, blank=blank, multiplier=multiplier, adder=adder)
     elif _thumb_style == "CARBONFET":
-        return carbonfet_thumb(side)
+        return carbonfet_thumb(side, blank=blank, multiplier=multiplier, adder=adder)
 
     elif "TRACKBALL" in _thumb_style:
         if (side == ball_side or ball_side == 'both'):
             if _thumb_style == "TRACKBALL_ORBYL":
-                return tbjs_thumb(side)
+                return tbjs_thumb(side, blank=blank, multiplier=multiplier, adder=adder)
             elif _thumb_style == "TRACKBALL_CJ":
-                return tbcj_thumb(side)
+                return tbcj_thumb(side, blank=blank, multiplier=multiplier, adder=adder)
         else:
-            return thumb(side, style_override=other_thumb)
+            return thumb(side, style_override=other_thumb, blank=blank, multiplier=multiplier, adder=adder)
 
     else:
-        return default_thumb(side)
+        return default_thumb(side, blank=blank, multiplier=multiplier, adder=adder)
 
 
 def thumb_connectors(side='right', style_override=None):
@@ -981,13 +1012,23 @@ def default_thumbcaps():
     return t1
 
 
-def default_thumb(side="right"):
-    print('thumb()')
-    shape = default_thumb_1x_layout(rotate(single_plate(side=side), (0, 0, -90)))
-    shape = union([shape, default_thumb_15x_layout(rotate(single_plate(side=side), (0, 0, -90)))])
-    shape = union([shape, default_thumb_15x_layout(double_plate(), plate=False)])
-    #shape = add([shape, default_thumb_15x_layout(rotate(single_plate(side=side), (0, 0, -90)))])
-    #shape = add([shape, default_thumb_15x_layout(double_plate(), plate=False)])
+def default_thumb(side="right", blank=False, multiplier=1, adder=0):
+    if blank:
+        print('thumb()')
+        shape = default_thumb_1x_layout(rotate(
+            construction_plate(multiplier=multiplier, adder=adder),
+            (0, 0, -90)
+        ))
+        shape = union([shape, default_thumb_15x_layout(rotate(
+            construction_plate(multiplier=multiplier, adder=adder),
+            (0, 0, -90)
+        ))])
+        shape = union([shape, default_thumb_15x_layout(double_plate(multiplier=multiplier, adder=adder), plate=False)])
+    else:
+        shape = default_thumb_1x_layout(rotate(single_plate(side=side), (0, 0, -90)))
+        shape = union([shape, default_thumb_15x_layout(rotate(single_plate(side=side), (0, 0, -90)))])
+        shape = union([shape, default_thumb_15x_layout(double_plate(), plate=False)])
+
     # if plate_pcb_clear:
     #     shape = difference(shape, [default_thumb_pcb_plate_cutouts()])
     return shape
@@ -1247,10 +1288,15 @@ def mini_thumbcaps():
     return t1.add(t15)
 
 
-def mini_thumb(side="right"):
-    shape = mini_thumb_1x_layout(single_plate(side=side))
-    shape = union([shape, mini_thumb_15x_layout(single_plate(side=side))])
-    #shape = add([shape, mini_thumb_15x_layout(single_plate(side=side))])
+def mini_thumb(side="right", blank=False, multiplier=1, adder=0):
+    if blank:
+        shape = mini_thumb_1x_layout(construction_plate(multiplier=multiplier, adder=adder))
+        shape = union([shape, mini_thumb_15x_layout(construction_plate(multiplier=multiplier, adder=adder))])
+        #shape = add([shape, mini_thumb_15x_layout(single_plate(side=side))])
+    else:
+        shape = mini_thumb_1x_layout(single_plate(side=side))
+        shape = union([shape, mini_thumb_15x_layout(single_plate(side=side))])
+        #shape = add([shape, mini_thumb_15x_layout(single_plate(side=side))])
 
     return shape
 
@@ -1428,12 +1474,15 @@ def minidox_thumbcaps():
     return t1
 
 
-def minidox_thumb(side="right"):
-
-    shape = minidox_thumb_fx_layout(rotate(single_plate(side=side), [0.0, 0.0, -90]))
-    shape = union([shape, minidox_thumb_fx_layout(adjustable_plate(minidox_Usize))])
-    #shape = add([shape, minidox_thumb_fx_layout(adjustable_plate(minidox_Usize))])
-    # shape = minidox_thumb_1x_layout(single_plate(side=side))
+def minidox_thumb(side="right", blank=False, multiplier=1, adder=0):
+    if blank:
+        shape = minidox_thumb_fx_layout(rotate(construction_plate(multiplier=multiplier, adder=adder), [0.0, 0.0, -90]))
+        shape = union([shape, minidox_thumb_fx_layout(adjustable_plate(minidox_Usize, multiplier=multiplier, adder=adder))])
+    else:
+        shape = minidox_thumb_fx_layout(rotate(single_plate(side=side), [0.0, 0.0, -90]))
+        shape = union([shape, minidox_thumb_fx_layout(adjustable_plate(minidox_Usize))])
+        #shape = add([shape, minidox_thumb_fx_layout(adjustable_plate(minidox_Usize))])
+        # shape = minidox_thumb_1x_layout(single_plate(side=side))
     return shape
 
 def minidox_thumb_pcb_plate_cutouts(side="right"):
@@ -1597,12 +1646,17 @@ def carbonfet_thumbcaps():
     return t1.add(t15)
 
 
-def carbonfet_thumb(side="right"):
-    shape = carbonfet_thumb_1x_layout(single_plate(side=side))
-    shape = union([shape, carbonfet_thumb_15x_layout(double_plate_half(), plate=False)])
-    shape = union([shape, carbonfet_thumb_15x_layout(single_plate(side=side))])
-    #shape = add([shape, carbonfet_thumb_15x_layout(double_plate_half(), plate=False)])
-    #shape = add([shape, carbonfet_thumb_15x_layout(single_plate(side=side))])
+def carbonfet_thumb(side="right", blank=False, multiplier=1, adder=0):
+    if blank:
+        shape = carbonfet_thumb_1x_layout(construction_plate(multiplier=multiplier, adder=adder))
+        shape = union([shape, carbonfet_thumb_15x_layout(double_plate_half(multiplier=multiplier, adder=adder), plate=False)])
+        shape = union([shape, carbonfet_thumb_15x_layout(construction_plate(multiplier=multiplier, adder=adder))])
+    else:
+        shape = carbonfet_thumb_1x_layout(single_plate(side=side))
+        shape = union([shape, carbonfet_thumb_15x_layout(double_plate_half(), plate=False)])
+        shape = union([shape, carbonfet_thumb_15x_layout(single_plate(side=side))])
+        #shape = add([shape, carbonfet_thumb_15x_layout(double_plate_half(), plate=False)])
+        #shape = add([shape, carbonfet_thumb_15x_layout(single_plate(side=side))])
 
     return shape
 
@@ -1859,15 +1913,19 @@ def tbjs_thumbcaps():
     return t1
 
 
-def tbjs_thumb(side="right"):
-    # shape = tbjs_thumb_fx_layout(rotate(single_plate(side=side), [0.0, 0.0, -90]))
-    shape = tbjs_thumb_1x_layout(single_plate(side=side))
-    # shape = tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight))
-    shape = union([shape, *tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight))])
-    #shape = add([shape, *tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight))])
+def tbjs_thumb(side="right", blank=False, multiplier=1, adder=0):
+    if blank:
+        shape = tbjs_thumb_1x_layout(construction_plate(multiplier=multiplier, adder=adder))
+        shape = union([shape, *tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight, multiplier=multiplier, adder=adder))])
+    else:
+        # shape = tbjs_thumb_fx_layout(rotate(single_plate(side=side), [0.0, 0.0, -90]))
+        shape = tbjs_thumb_1x_layout(single_plate(side=side))
+        # shape = tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight))
+        shape = union([shape, *tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight))])
+        #shape = add([shape, *tbjs_thumb_fx_layout(adjustable_square_plate(Uwidth=tbjs_Uwidth, Uheight=tbjs_Uheight))])
 
-    # shape = union([shape, trackball_layout(trackball_socket())])
-    # shape = tbjs_thumb_1x_layout(single_plate(side=side))
+        # shape = union([shape, trackball_layout(trackball_socket())])
+        # shape = tbjs_thumb_1x_layout(single_plate(side=side))
     return shape
 
 
@@ -2123,11 +2181,15 @@ def tbcj_place(shape):
     shape = rotate(shape, (0, 0, 0))
     return shape
 
-def tbcj_thumb(side="right"):
-    t = tbcj_thumb_layout(single_plate(side=side))
-    tb = tbcj_place(tbcj_holder())
+def tbcj_thumb(side="right", blank=False, multiplier=1, adder=0):
+    if blank:
+        t = tbcj_thumb_layout(construction_plate(multiplier=multiplier, adder=adder))
+        tb = tbcj_place(tbcj_holder())
+    else:
+        t = tbcj_thumb_layout(single_plate(side=side))
+        tb = tbcj_place(tbcj_holder())
+
     return union([t, tb])
-    #return add([t, tb])
 
 def tbcj_thumb_pcb_plate_cutouts(side="right"):
     t = tbcj_thumb_layout(plate_pcb_cutout(side=side))
@@ -2325,7 +2387,7 @@ def left_key_place(shape, row, direction, low_corner=False, side='right'):
 
 def wall_locate1(dx, dy):
     debugprint("wall_locate1()")
-    return [dx * wall_thickness, dy * wall_thickness, -1]
+    return [dx * wall_thickness, dy * wall_thickness, -wall1_z_offset]
 
 
 def wall_locate2(dx, dy):
@@ -2380,7 +2442,7 @@ def wall_brace(place1, dx1, dy1, post1, place2, dx2, dy2, post2, back=False, ske
     if not skeleton or skel_bottom:
         hulls.append(place2(translate(post2, wall_locate3(dx2, dy2, back))))
 
-    if len(hulls)>0:
+    if len(hulls) > 0:
         shape2 = bottom_hull(hulls)
         shape1 = union([shape1, shape2])
         #shape1 = add([shape1, shape2])
@@ -4026,11 +4088,19 @@ def wire_posts():
 def model_side(side="right"):
     print('model_right()')
     #shape = add([key_holes(side=side)])
-    shape = union([key_holes(side=side)])
+
+    if blender_smooth:
+        cut_mult = blender_cut_mult
+        plate_adder = blender_plate_add
+        plates = union([key_holes(blank=True, adder=blender_plate_add)])
+    else:
+        plates = union([key_holes(side=side)])
+
     if debug_exports:
-        export_file(shape=shape, fname=path.join(r"..", "things", r"debug_key_plates"))
+        export_file(shape=plates, fname=path.join(r"..", "things", r"debug_key_plates"))
+
     connector_shape = connectors()
-    shape = union([shape, connector_shape])
+    shape = union([plates, connector_shape])
     if debug_exports:
         export_file(shape=shape, fname=path.join(r"..", "things", r"debug_connector_shape"))
     walls_shape = case_walls(side=side, skeleton=skeletal)
@@ -4038,7 +4108,144 @@ def model_side(side="right"):
         export_file(shape=walls_shape, fname=path.join(r"..", "things", r"debug_walls_shape"))
 
     s2 = union([walls_shape])
-    s2 = union([s2, *screw_insert_outers(side=side)])
+    shape = union([shape, s2])
+
+    if blender_smooth:
+        separable_thumb = False
+        thumb_blank_plates = thumb(side=side, blank=True, adder=plate_adder)
+        thumb_cut_plates = thumb(side=side, blank=True, multiplier=cut_mult)
+        thumb_plates = thumb(side=side)
+
+        if debug_exports:
+            export_file(shape=thumb_plates, fname=path.join(r"..", "things", r"debug_thumb_shape"))
+        thumb_connector_shape = thumb_connectors(side=side)
+        if debug_exports:
+            export_file(shape=thumb_connector_shape, fname=path.join(r"..", "things", r"debug_thumb_connector_shape"))
+
+        thumb_wall_shape = thumb_walls(side=side, skeleton=skeletal)
+        thumb_screw_outers = thumb_screw_insert_outers(side=side)
+        # thumb_wall_shape = union([thumb_wall_shape, *thumb_screw_insert_outers(side=side)])
+        thumb_connection_shape = thumb_connection(side=side, skeleton=skeletal)
+
+
+        if debug_exports:
+            thumb_test = union([thumb_blank_plates, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
+            export_file(shape=thumb_test, fname=path.join(r"..", "things", r"debug_thumb_test_{}_shape".format(side)))
+
+        thumb_section = union([thumb_blank_plates, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
+        # thumb_section = difference(thumb_section, [union(thumb_screw_insert_holes(side=side))])
+        thumb_screw_holes = thumb_screw_insert_holes(side=side)
+
+        shape = union([shape, thumb_section])
+        block = box(500, 500, 40)
+        block = translate(block, (0, 0, -20))
+        shape = difference(shape, [block])
+        f_to_smooth = path.abspath(path.join(r"..", "things", r"shape_for_smoothing"))
+        export_stl(shape=shape, fname=f_to_smooth)
+
+        pl_to_smooth = path.abspath(path.join(r"..", "things", r"plates_for_smoothing"))
+        export_stl(shape=union([plates, thumb_blank_plates]),
+                          fname=pl_to_smooth)
+
+        blender_info = dict(
+            f_to_smooth=f_to_smooth,
+            pl_to_smooth=pl_to_smooth,
+            blender_presmooth=blender_presmooth,
+            blender_presubdivide=blender_presubdivide,
+            blender_smooth=blender_smooth,
+            blender_controlled_smooth=blender_controlled_smooth,
+            current_dir=os.path.abspath(r"."),
+            blender_dir=blender_dir,
+            # blender_packages_path=blender_packages_path,
+        )
+
+        import subprocess
+
+        run_file = ""
+        run_file += "import os\n"
+        run_file += "import sys\n"
+        run_file += "run_dir = r'{}'\n".format(os.path.abspath(r'.'))
+        run_file += open('blender_processing.py').read()
+
+        with open('blender_config.json', mode='w') as fid:
+            json.dump(blender_info, fid)
+        with open('blender_run.py', mode='w') as fid:
+            fid.write(run_file)
+
+        bpath = os.path.abspath(os.path.join(blender_dir, 'blender.exe'))
+        pfpath = os.path.abspath(os.path.join('.', r'blender_run.py'))
+        output = subprocess.check_output(
+            r'"{bpath}" -b --factory-startup --python "{pfpath}"'.format(bpath=bpath, pfpath=pfpath),
+            # r'"{bpath}" --factory-startup --python "{pfpath}"'.format(bpath=bpath, pfpath=pfpath),
+            shell=True
+        )
+        print('==========================================')
+        print('START BLENDER PROCESSING ')
+        print('==========================================')
+        print(output.decode('UTF-8'))
+        if 'PROCESSING COMPLETE' in str(output):
+            print('==========================================')
+            print('BLENDER PROCESSING COMPLETED SUCCESSFULLY')
+            print('==========================================')
+        else:
+            print('==========================================')
+            print('BLENDER PROCESSING FAILED')
+            print('==========================================')
+            raise Exception('Blender processing failed')
+
+        #
+        # f_smoothed = path.join(r"..", "things", r"smoothed.stl")
+        # bdr.export_file(bdr_shape, fname=f_smoothed)
+
+        f_smoothed = path.join(r"..", "things", r"smoothed.stl")
+        print('Importing smoothed STL')
+        shape = import_stl(f_smoothed)
+        print('Fixing shape')
+        for obj in shape.vals():
+            obj.fix()
+        export_file(shape=shape,
+                           fname=path.join(r"..", "things", r"debug_cq_import"))
+        print('Creating cutter plates')
+        cutter_plates = key_holes(blank=True, multiplier=cut_mult)
+        export_file(shape=union([cutter_plates]),
+                           fname=path.join(r"..", "things", r"debug_finger_cutter_plates"))
+        export_file(shape=union([thumb_cut_plates]),
+                           fname=path.join(r"..", "things", r"debug_thumb_cutter_plates"))
+        print('Cutting finger plates from shape')
+        shape = difference(shape, [cutter_plates])
+        print('Fixing shape')
+        for obj in shape.vals():
+            obj.fix()
+        export_file(shape=shape,
+                           fname=path.join(r"..", "things", r"debug_cut_plates"))
+        print('Cutting thumb plates from shape')
+        shape = difference(shape, [thumb_cut_plates])
+        print('Fixing shape')
+        for obj in shape.vals():
+            obj.fix()
+        export_file(shape=shape,
+                           fname=path.join(r"..", "things", r"debug_cut_base"))
+        fill_plates = key_holes(side=side)
+        export_file(shape=union([fill_plates, thumb_plates]),
+                           fname=path.join(r"..", "things", r"debug_fill_plates"))
+        print('Adding key plates to shape')
+        shape = union([shape, fill_plates, thumb_plates])
+        print('Fixing shape')
+        for obj in shape.vals():
+            obj.fix()
+        thumb_section = shape
+        export_file(shape=shape,
+                           fname=path.join(r"..", "things", r"debug_smoothed"))
+
+
+    screw_outers = screw_insert_outers(side=side)
+    if blender_smooth:
+        shape = union([shape, *screw_outers, *thumb_screw_outers])
+        print('Fixing shape')
+        for obj in shape.vals():
+            obj.fix()
+    else:
+        shape = union([shape, *screw_outers])
 
     if controller_mount_type in ['RJ9_USB_TEENSY', 'USB_TEENSY']:
         s2 = union([s2, teensy_holder()])
@@ -4063,8 +4270,11 @@ def model_side(side="right"):
     if controller_mount_type in [None, 'None']:
         0 # do nothing, only here to expressly state inaction.
 
-    s2 = difference(s2, [union(screw_insert_holes(side=side))])
-    shape = union([shape, s2])
+
+    shape = difference(shape, [union(screw_insert_holes(side=side))])
+
+    if blender_smooth:
+        shape = difference(shape, thumb_screw_holes)
 
     if controller_mount_type in ['RJ9_USB_TEENSY', 'RJ9_USB_WALL']:
         shape = union([shape, rj9_holder()])
@@ -4106,24 +4316,25 @@ def model_side(side="right"):
 
     #BUILD THUMB
 
-    thumb_shape = thumb(side=side)
-    if debug_exports:
-        export_file(shape=thumb_shape, fname=path.join(r"..", "things", r"debug_thumb_shape"))
-    thumb_connector_shape = thumb_connectors(side=side)
-    if debug_exports:
-        export_file(shape=thumb_connector_shape, fname=path.join(r"..", "things", r"debug_thumb_connector_shape"))
+    if not blender_smooth:
+        thumb_shape = thumb(side=side)
+        if debug_exports:
+            export_file(shape=thumb_shape, fname=path.join(r"..", "things", r"debug_thumb_shape"))
+        thumb_connector_shape = thumb_connectors(side=side)
+        if debug_exports:
+            export_file(shape=thumb_connector_shape, fname=path.join(r"..", "things", r"debug_thumb_connector_shape"))
 
-    thumb_wall_shape = thumb_walls(side=side, skeleton=skeletal)
-    thumb_wall_shape = union([thumb_wall_shape, *thumb_screw_insert_outers(side=side)])
-    thumb_connection_shape = thumb_connection(side=side, skeleton=skeletal)
+        thumb_wall_shape = thumb_walls(side=side, skeleton=skeletal)
+        thumb_wall_shape = union([thumb_wall_shape, *thumb_screw_insert_outers(side=side)])
+        thumb_connection_shape = thumb_connection(side=side, skeleton=skeletal)
 
 
-    if debug_exports:
-        thumb_test = union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
-        export_file(shape=thumb_test, fname=path.join(r"..", "things", r"debug_thumb_test_{}_shape".format(side)))
+        if debug_exports:
+            thumb_test = union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
+            export_file(shape=thumb_test, fname=path.join(r"..", "things", r"debug_thumb_test_{}_shape".format(side)))
 
-    thumb_section = union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
-    thumb_section = difference(thumb_section, [union(thumb_screw_insert_holes(side=side))])
+        thumb_section = union([thumb_shape, thumb_connector_shape, thumb_wall_shape, thumb_connection_shape])
+        thumb_section = difference(thumb_section, [union(thumb_screw_insert_holes(side=side))])
 
     has_trackball = False
     if ('TRACKBALL' in thumb_style) and (side == ball_side or ball_side == 'both'):
@@ -4146,12 +4357,13 @@ def model_side(side="right"):
     if plate_pcb_clear:
         thumb_section = difference(thumb_section, [thumb_pcb_plate_cutouts(side=side)])
 
-    block = box(350, 350, 40)
-    block = translate(block, (0, 0, -20))
-    main_shape = difference(main_shape, [block])
-    thumb_section = difference(thumb_section, [block])
-    if debug_exports:
-        export_file(shape=thumb_section, fname=path.join(r"..", "things", r"debug_thumb_test_5_shape".format(side)))
+    if not blender_smooth:
+        block = box(350, 350, 40)
+        block = translate(block, (0, 0, -20))
+        main_shape = difference(main_shape, [block])
+        thumb_section = difference(thumb_section, [block])
+        if debug_exports:
+            export_file(shape=thumb_section, fname=path.join(r"..", "things", r"debug_thumb_test_5_shape".format(side)))
 
     if separable_thumb:
         thumb_section = difference(thumb_section, [main_shape])
@@ -4160,7 +4372,8 @@ def model_side(side="right"):
             if has_trackball:
                 thumb_section = add([thumb_section, ball])
     else:
-        main_shape = union([main_shape, thumb_section])
+        if not blender_smooth:
+            main_shape = union([main_shape, thumb_section])
         if debug_exports:
             export_file(shape=main_shape, fname=path.join(r"..", "things", r"debug_thumb_test_6_shape".format(side)))
         if show_caps:

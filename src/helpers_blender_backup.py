@@ -179,27 +179,29 @@ def boolean_post_cleanup(
     bpy.ops.mesh.select_all(action='DESELECT')
     select_vertices_from_shape(shape, x=None, y=None, z=z)
 
-    if remove_doubles_threshold is not None:
+    if remove_doubles_threshold:
         bpy.ops.mesh.remove_doubles(threshold=remove_doubles_threshold)
 
-    if (dissolve_limited > 0):
+    if dissolve_limited:
         bpy.ops.mesh.dissolve_limited(angle_limit=dissolve_limited)
 
-    if (dissolve_degenerate > 0):
+    if dissolve_degenerate:
         bpy.ops.mesh.dissolve_degenerate(threshold=dissolve_degenerate)
 
-    if (delete_loose):
+    if delete_loose:
         bpy.ops.mesh.delete_loose()
 
-    if (beautify_faces):
-        bpy.ops.mesh.beautify_fill(angle_limit=3.14159)
+    # if beautify_faces:
+    #     bpy.ops.mesh.beautify_fill(angle_limit=3.14159)
 
-    if (recalc_normals):
+    if recalc_normals:
         bpy.ops.mesh.normals_make_consistent(inside=False)
 
     if tris_to_quads:
         bpy.ops.mesh.tris_convert_to_quads()
 
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
     return shape
 
 

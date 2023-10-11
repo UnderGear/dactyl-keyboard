@@ -1,4 +1,9 @@
 import cadquery as cq
+from OCP import StlAPI
+from OCP import TopoDS
+from OCP.TopExp import TopExp_Explorer
+from OCP.TopAbs import TopAbs_FACE
+
 from scipy.spatial import ConvexHull as sphull
 import numpy as np
 
@@ -226,12 +231,35 @@ def import_file(fname, convexity=None):
         cq.exporters.ExportTypes.STEP,
         fname + ".step"))
 
+def import_stl(fname, convexity=None):
+    print("IMPORTING FROM {}".format(fname))
+    shape = TopoDS.TopoDS_Shape()
+    stl_reader = StlAPI.StlAPI_Reader()
+    stl_reader.Read(shape, fname)
+    print(shape)
+    if shape.IsNull():
+        raise AssertionError("Shape is null.")
+
+    topExp = TopExp_Explorer()
+    topExp.Init(shape, TopAbs_FACE)
+    faces = []
+    while topExp.More():
+        faces.append(cq.Face(topExp.Current()))
+        topExp.Next()
+    solid_object = cq.Solid.makeSolid(cq.Shell.makeShell(faces))
+    solid_object = solid_object.fix()
+    return cq.Workplane('XY').add(solid_object)
 
 def export_file(shape, fname):
     print("EXPORTING TO {}".format(fname))
     cq.exporters.export(w=shape, fname=fname + ".step",
                         exportType='STEP')
+    export_stl(shape, fname + '_cadquery')
 
+def export_stl(shape, fname):
+    print("EXPORTING TO {}".format(fname))
+    cq.exporters.export(w=shape, fname=fname + ".stl",
+                        exportType='STL')
 
 def export_dxf(shape, fname):
     print("EXPORTING TO {}".format(fname))

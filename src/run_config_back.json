@@ -1,17 +1,10 @@
 {
     "ENGINE": "cadquery",
-    "save_dir": ".",
-    "config_name": "DM",
-    "blender_dir": "C:\\Program Files\\Blender Foundation\\Blender 3.6",
-    "blender_smooth": 1,
-    "blender_plate_add": 0.01,
-    "blender_cut_mult": 5,
-    "blender_presmooth": 2,
-    "blender_presubdivide": 0,
-    "blender_controlled_smooth": 0,
-    "show_caps": false,
+    "save_dir": "DM_4x5_HS_NOTCHPLT_DEFTMB_OLED_DEFCTRL",
+    "config_name": "DM_4x5_HS_NOTCHPLT_DEFTMB_OLED_DEFCTRL",
+    "show_caps": "MX",
     "show_pcbs": false,
-    "nrows": 3,
+    "nrows": 4,
     "ncols": 5,
     "alpha": 0.26179916666666664,
     "beta": 0.08726638888888888,
@@ -34,60 +27,6 @@
     "web_thickness": 5.1,
     "post_size": 0.1,
     "post_adj": 0,
-    "key_adjustments": {
-        "2": {
-            "4": [
-                [
-                    0,
-                    0,
-                    -6
-                ],
-                [
-                    0.5061450555555556,
-                    0
-                ]
-            ]
-        },
-        "3": {
-            "4": [
-                [
-                    0,
-                    0,
-                    -6
-                ],
-                [
-                    0.5061450555555556,
-                    0
-                ]
-            ]
-        },
-        "4": {
-            "4": [
-                [
-                    0,
-                    0,
-                    -6
-                ],
-                [
-                    0.5061450555555556,
-                    0
-                ]
-            ]
-        },
-        "5": {
-            "4": [
-                [
-                    0,
-                    0,
-                    -6
-                ],
-                [
-                    0.5061450555555556,
-                    0
-                ]
-            ]
-        }
-    },
     "thumb_style": "DEFAULT",
     "default_1U_cluster": true,
     "minidox_Usize": 1.6,
@@ -350,8 +289,7 @@
     "left_wall_lower_x_offset": 0,
     "left_wall_lower_y_offset": 0,
     "left_wall_lower_z_offset": 0,
-    "wall_thickness": 8,
-    "wall1_z_offset": 0,
+    "wall_thickness": 4.5,
     "wall_base_y_thickness": 4.5,
     "wall_base_x_thickness": 4.5,
     "wall_base_back_thickness": 4.5,
@@ -383,7 +321,7 @@
         17.5
     ],
     "fixed_tenting": 0.0,
-    "plate_style": "NOTCH",
+    "plate_style": "HS_NOTCH",
     "hole_keyswitch_height": 14.0,
     "hole_keyswitch_width": 14.0,
     "nub_keyswitch_height": 14.4,
@@ -401,7 +339,7 @@
     "undercut_transition": 0.2,
     "plate_file": null,
     "plate_offset": 0.0,
-    "oled_mount_type": null,
+    "oled_mount_type": "CLIP",
     "oled_center_row": 1.25,
     "oled_translation_offset": [
         0,
@@ -510,7 +448,7 @@
     "wire_post_height": 7,
     "wire_post_overhang": 3.5,
     "wire_post_diameter": 2.6,
-    "controller_mount_type": "EXTERNAL",
+    "controller_mount_type": "RJ9_USB_WALL",
     "external_holder_height": 12.5,
     "external_holder_width": 28.75,
     "external_holder_xoffset": -5.0,
@@ -570,7 +508,7 @@
     "base_rim_thickness": 5.0,
     "screw_cbore_diameter": 6.0,
     "screw_cbore_depth": 2.5,
-    "plate_holes": false,
+    "plate_holes": true,
     "plate_holes_xy_offset": [
         0.0,
         0.0

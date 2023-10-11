@@ -10,8 +10,8 @@ r2d = 180 / pi
 
 shape_config = {
 
-    'ENGINE': 'solid',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
-    # 'ENGINE': 'cadquery',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    # 'ENGINE': 'solid',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
+    'ENGINE': 'cadquery',  # 'solid' = solid python / OpenSCAD, 'cadquery' = cadquery / OpenCascade
 
 
     ######################
@@ -21,11 +21,37 @@ shape_config = {
     'save_dir': '.',
     'config_name':  "DM",
 
-    'show_caps': 'MX',
+    # Blender directory
+    'blender_dir': r"C:\Program Files\Blender Foundation\Blender 3.6",
+
+    # Number of splits when applying the smoothing.
+    'blender_smooth': 1,
+
+    # Plate added height for blank plates used to smooth.
+    # Needs some difference to keep mesh for plates to minimize plate distortion.
+    # Larger differences could have interesting impacts on the smoothed form.
+    'blender_plate_add': 0.01,
+
+    # Height multiplier for clearing smoothed design for key plates.
+    # Smoothing varies the height and thickness so it needs extra height to clear all geometry for plates.
+    'blender_cut_mult': 5,
+
+    # Number of splits presmoothing to keep geometric form.  Uses modifiers.
+    'blender_presmooth': 2,
+
+    # Number of splits presmoothing to keep geometric form.  Uses direct mesh dividing.
+    'blender_presubdivide': 0,
+
+    # Whether to attempt to crease the key plates so they don't locally smooth.
+    # Maintains geometry better, but tends to corrupt the mesh.
+    'blender_controlled_smooth': 0,
+ 
+
+    'show_caps': False, #'MX',
     'show_pcbs': False, #only runs if caps are shown, easist place to initially inject geometry
 
-    'nrows':  5, #5,  # key rows
-    'ncols':  6, #6,  # key columns
+    'nrows':  3, #5,  # key rows
+    'ncols':  5, #6,  # key columns
 
     'alpha':  pi / 12.0,  # curvature of the columns
     'beta':  pi / 36.0,  # curvature of the rows
@@ -48,14 +74,26 @@ shape_config = {
     ),
 
 
+    # 'extra_width': 2.5,  # extra space between the base of keys# original= 2
+    # 'extra_height': 1.0,  # original= 0.5
     'extra_width': 2.5,  # extra space between the base of keys# original= 2
     'extra_height': 1.0,  # original= 0.5
-
 
     'web_thickness': 4.0 + 1.1,
     'post_size': 0.1,
     # post_adj':  post_size / 2
     'post_adj': 0,
+
+    # key adjustments in [row, column] keyed dictionary.
+    # The expected content is (translation, euler rotation) roation will be applier first and translation will be applied after the base location
+    # In full form ((x, y, z), (rotx, roty)) and will be applied after the base location
+    'key_adjustments': {
+        2: {4: ((0, 0, -6), (pi*29/180, 0))},
+        3: {4: ((0, 0, -6), (pi*29/180, 0))},
+        4: {4: ((0, 0, -6), (pi*29/180, 0))},
+        5: {4: ((0, 0, -6), (pi*29/180, 0))},
+    },
+
 
     ##############################
     # THUMB PARAMETERS
@@ -205,7 +243,10 @@ shape_config = {
     'left_wall_lower_x_offset': 0,  # specific values for the lower left corner.
     'left_wall_lower_y_offset': 0,  # specific values for the lower left corner.
     'left_wall_lower_z_offset': 0,
-    'wall_thickness':  4.5,  # wall thickness parameter used on upper/mid stage of the wall
+    # 'wall_thickness':  4.5,  # wall thickness parameter used on upper/mid stage of the wall
+    'wall_thickness':  8,  # wall thickness parameter used on upper/mid stage of the wall
+    # 'wall1_z_offset': -1,# wall thickness parameter used on upper/mid stage of the wall
+    'wall1_z_offset': 0, # wall z offset parameter used on upper/mid stage of the wall
     'wall_base_y_thickness':  4.5,  # wall thickness at the lower stage
     'wall_base_x_thickness':  4.5,  # wall thickness at the lower stage
 
@@ -273,7 +314,8 @@ shape_config = {
     # 'SLIDING' = Features to slide the OLED in place and use a pin or block to secure from underneath.
     # 'CLIP' = Features to set the OLED in a frame a snap a bezel down to hold it in place.
 
-    'oled_mount_type':  'CLIP',
+    # 'oled_mount_type':  'CLIP',
+    'oled_mount_type':  None,
     'oled_center_row': 1.25, # if not None, this will override the oled_mount_location_xyz and oled_mount_rotation_xyz settings
     'oled_translation_offset': (0, 0, 4), # Z offset tweaks are expected depending on curvature and OLED mount choice.
     'oled_rotation_offset': (0, 0, 0),
@@ -429,7 +471,7 @@ shape_config = {
     ###################################
     ## HOLES ON PLATE FOR PCB MOUNT
     ###################################
-    'plate_holes':  True,
+    'plate_holes':  False,
     'plate_holes_xy_offset': (0.0, 0.0),
     'plate_holes_width': 14.3,
     'plate_holes_height': 14.3,
@@ -505,5 +547,5 @@ if __name__ == '__main__':
     save_config()
 
     ## HERE FOR QUICK TESTING, SHOULD BE COMMENTED ON COMMIT
-    # from dactyl_manuform import *
-    # run()
+    from dactyl_manuform import *
+    run()

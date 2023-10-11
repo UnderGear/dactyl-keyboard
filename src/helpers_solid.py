@@ -151,6 +151,9 @@ def export_file(shape, fname):
     print("EXPORTING TO {}".format(fname))
     sl.scad_render_to_file(shape, fname + ".scad")
 
+def export_stl(shape, fname):
+    print("NO DXF EXPORT FOR SOLID".format(fname))
+    pass
 
 def export_dxf(shape, fname):
     print("NO DXF EXPORT FOR SOLID".format(fname))
