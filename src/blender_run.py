@@ -5,8 +5,6 @@ run_dir = r'E:\Users\jashreve\git\dactyl-keyboard-JS\src'
 import os
 import sys
 import json
-import helpers.helpers_blender as bdr
-
 
 # run_dir comes from the file generator that pulls this file.
 # This approach is used to simplify execution in Blender by generating the file to execute base on run location.
@@ -26,13 +24,14 @@ blender_dir = config['blender_dir']
 # blender_packages_path = config['blender_packages_path']
 current_dir = config['current_dir']
 
+
 # sys.path.insert(0, blender_packages_path )
 sys.path.append(current_dir)
 print(os.getcwd())
 os.chdir(current_dir)
 print(os.getcwd())
 
-
+import helpers.helpers_blender as bdr
 
 bdr_shape = bdr.import_file(fname=f_to_smooth + ".stl")
 shared_shape = bdr.import_file(fname=pl_to_smooth + ".stl")
@@ -62,17 +61,17 @@ bdr_shape = bdr.subdivide_mesh(bdr_shape, level=blender_smooth)
 bdr_shape5 = bdr.duplicate(bdr_shape)
 bdr_shape5.name = "shape5_post_smooth"
 
-bdr_shape = bdr.boolean_post_cleanup(
-    bdr_shape,
-    remove_doubles_threshold=0.01,
-    dissolve_limited=0.01,
-    dissolve_degenerate=0.5,
-    delete_loose=True,
-    beautify_faces=False,
-    recalc_normals=True,
-    tris_to_quads=False,
-    z=[-1, 1.5],
-)
+# bdr_shape = bdr.boolean_post_cleanup(
+#     bdr_shape,
+#     remove_doubles_threshold=0.01,
+#     dissolve_limited=0.01,
+#     dissolve_degenerate=0.25,
+#     delete_loose=True,
+#     beautify_faces=False,
+#     recalc_normals=True,
+#     tris_to_quads=False,
+#     z=[2.0, 9999],
+# )
 
 # bdr_shape = bdr.boolean_cleanup(
 #     bdr_shape,

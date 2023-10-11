@@ -2,7 +2,7 @@
     "blender_dir": "C:\\Program Files\\Blender Foundation\\Blender 3.6",
     "blender_smooth": 1,
     "blender_plate_add": 0.01,
-    "blender_cut_mult": 5,
+    "blender_cut_mult": 3,
     "blender_presmooth": 1,
     "blender_presubdivide": 0,
     "blender_controlled_smooth": 0,
@@ -21,8 +21,8 @@
     "column_style_gt5": "orthographic",
     "reduced_outer_keys": true,
     "keyboard_z_offset": 11,
-    "extra_width": 3.0,
-    "extra_height": 2.0,
+    "extra_width": 2.0,
+    "extra_height": 1.5,
     "web_thickness": 5.1,
     "post_size": 0.1,
     "post_adj": 0,
@@ -39,8 +39,8 @@
     "plate_config": {
         "package": "shapes.plates",
         "class_name": "NotchPlate",
-        "keyswitch_height": 12.0,
-        "keyswitch_width": 12.0,
+        "keyswitch_height": 14.0,
+        "keyswitch_width": 14.0,
         "plate_thickness": 5.1,
         "sa_profile_key_height": 12.7,
         "sa_length": 18.5,
@@ -125,43 +125,43 @@
         ]
     ],
     "left_cluster": {
-        "name": "MINI",
-        "package": "clusters.mini",
-        "class_name": "MiniCluster",
+        "name": "DEFAULT",
+        "package": "clusters.default",
+        "class_name": "DefaultCluster",
         "thumb_offsets": [
             6.0,
             -3.0,
             7.0
         ],
         "tr_rotation": [
-            14,
+            10,
             -15,
             10
         ],
         "tr_position": [
-            -15,
-            -10,
-            5
+            -12.0,
+            -16.0,
+            3.0
         ],
         "tl_rotation": [
-            10,
-            -23,
-            25
+            7.5,
+            -18,
+            10
         ],
         "tl_position": [
-            -35,
-            -16,
-            -2
+            -32.5,
+            -14.5,
+            -2.5
         ],
         "mr_rotation": [
-            10,
-            -23,
-            25
+            -6,
+            -34,
+            48
         ],
         "mr_position": [
-            -23,
-            -34,
-            -6
+            -29.0,
+            -40.0,
+            -13.0
         ],
         "ml_rotation": [
             6,
@@ -169,29 +169,29 @@
             40
         ],
         "ml_position": [
-            -51,
-            -25,
-            -12
+            -51.0,
+            -25.0,
+            -12.0
         ],
         "br_rotation": [
-            6,
-            -34,
-            35
+            -16,
+            -33,
+            54
         ],
         "br_position": [
-            -39,
-            -43,
-            -16
+            -37.8,
+            -55.3,
+            -25.3
         ],
         "bl_rotation": [
-            6,
-            -32,
-            35
+            -4.0,
+            -35.0,
+            52.0
         ],
         "bl_position": [
-            -51,
-            -25,
-            -11.5
+            -56.3,
+            -43.3,
+            -23.5
         ],
         "thumb_plate_tr_rotation": 0,
         "thumb_plate_tl_rotation": 0,
@@ -201,63 +201,64 @@
         "thumb_plate_bl_rotation": 0,
         "thumb_screw_xy_locations": [
             [
-                -29,
-                -52
+                -21,
+                -58
             ]
         ],
         "separable_thumb_screw_xy_locations": [
             [
-                -29,
-                -52
+                -28,
+                -65
             ],
             [
-                -62,
-                10
+                8,
+                -31
             ],
             [
-                12,
-                -25
+                -53,
+                -3
             ]
-        ]
+        ],
+        "cluster_1U": false
     },
     "right_cluster": {
-        "name": "MINI",
-        "package": "clusters.mini",
-        "class_name": "MiniCluster",
+        "name": "DEFAULT",
+        "package": "clusters.default",
+        "class_name": "DefaultCluster",
         "thumb_offsets": [
             6.0,
             -3.0,
             7.0
         ],
         "tr_rotation": [
-            14,
+            10,
             -15,
             10
         ],
         "tr_position": [
-            -15,
-            -10,
-            5
+            -12.0,
+            -16.0,
+            3.0
         ],
         "tl_rotation": [
-            10,
-            -23,
-            25
+            7.5,
+            -18,
+            10
         ],
         "tl_position": [
-            -35,
-            -16,
-            -2
+            -32.5,
+            -14.5,
+            -2.5
         ],
         "mr_rotation": [
-            10,
-            -23,
-            25
+            -6,
+            -34,
+            48
         ],
         "mr_position": [
-            -23,
-            -34,
-            -6
+            -29.0,
+            -40.0,
+            -13.0
         ],
         "ml_rotation": [
             6,
@@ -265,29 +266,29 @@
             40
         ],
         "ml_position": [
-            -51,
-            -25,
-            -12
+            -51.0,
+            -25.0,
+            -12.0
         ],
         "br_rotation": [
-            6,
-            -34,
-            35
+            -16,
+            -33,
+            54
         ],
         "br_position": [
-            -39,
-            -43,
-            -16
+            -37.8,
+            -55.3,
+            -25.3
         ],
         "bl_rotation": [
-            6,
-            -32,
-            35
+            -4.0,
+            -35.0,
+            52.0
         ],
         "bl_position": [
-            -51,
-            -25,
-            -11.5
+            -56.3,
+            -43.3,
+            -23.5
         ],
         "thumb_plate_tr_rotation": 0,
         "thumb_plate_tl_rotation": 0,
@@ -297,24 +298,25 @@
         "thumb_plate_bl_rotation": 0,
         "thumb_screw_xy_locations": [
             [
-                -29,
-                -52
+                -21,
+                -58
             ]
         ],
         "separable_thumb_screw_xy_locations": [
             [
-                -29,
-                -52
+                -28,
+                -65
             ],
             [
-                -62,
-                10
+                8,
+                -31
             ],
             [
-                12,
-                -25
+                -53,
+                -3
             ]
-        ]
+        ],
+        "cluster_1U": false
     },
     "separable_thumb": false,
     "wall_offset": [

@@ -56,7 +56,7 @@ class ShapeConfiguration:
 
     # Height multiplier for clearing smoothed design for key plates.
     # Smoothing varies the height and thickness so it needs extra height to clear all geometry for plates.
-    blender_cut_mult: float = 5
+    blender_cut_mult: float = 3
 
     # Number of splits presmoothing to keep geometric form.  Uses modifiers.
     blender_presmooth: int = 1
@@ -76,7 +76,7 @@ class ShapeConfiguration:
     config_name: str = "DM"
 
     show_caps: bool = None #'CHOC'
-    show_pcbs: bool = False  # only runs if caps are shown, easist place to initially inject geometry
+    show_pcbs: bool = False  # only runs if caps are shown, easiest place to initially inject geometry
 
     nrows = 3  # 5,  # key rows
     ncols = 5  # 6,  # key columns
@@ -98,10 +98,8 @@ class ShapeConfiguration:
 
     keyboard_z_offset: float = (11)  # controls overall height# original=9 with centercol=3# use 16 for centercol=2
 
-    # extra_width: float = 2.0  # extra space between the base of keys# original= 2
-    # extra_height: float = 1.0  # original= 0.5
-    extra_width: float = 3.0  # extra space between the base of keys# original= 2
-    extra_height: float = 2.0  # original= 0.5
+    extra_width: float = 2.0  # extra space between the base of keys# original= 2
+    extra_height: float = 1.5  # original= 0.5
 
     web_thickness: float = 4.0 + 1.1
     post_size: float = .1
@@ -261,19 +259,19 @@ if __name__ == '__main__':
     # # right_cluster = clust_def.DefaultClusterParameters()
     # right_cluster = None
 
-    import clusters.minidox as clust_minidox
-    import clusters.mini as clust_mini
 
+    import clusters.minidox as clust_minidox
     # left_cluster = clust_minidox.MinidoxClusterParameters()
+    import clusters.mini as clust_mini
     left_cluster = clust_mini.MiniClusterParameters()
+    import clusters.default as clust_def
+    left_cluster = clust_def.DefaultClusterParameters()
     # right_cluster = clust_def.DefaultClusterParameters()
     right_cluster = None
 
     from shapes import plates
     plate_config = plates.NotchPlateParameters(
         plate_holes=False, plate_pcb_clear=False,
-        keyswitch_height=14.0 - 2.0,
-        keyswitch_width=14.0 - 2.0,
     )
     # import clusters.mini as clust_min
     # right_cluster = clust_min.MiniClusterParameters()
